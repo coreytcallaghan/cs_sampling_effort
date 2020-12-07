@@ -17,7 +17,8 @@ bird_dat <- readRDS("Data/bcr31_2016_data.RDS") %>%
 # get grid summary
 grid_summary <- bird_dat %>%
   group_by(grid_id) %>%
-  summarize(number_checklists=length(unique(SAMPLING_EVENT_IDENTIFIER)))
+  summarize(number_checklists=length(unique(SAMPLING_EVENT_IDENTIFIER)),
+            total_SR=length(unique(COMMON_NAME)))
 
 ggplot(grid_summary, aes(x=number_checklists))+
   geom_histogram(bins=50, fill="gray80", color="black")+
@@ -148,7 +149,7 @@ summary %>%
   geom_smooth(method="lm")
 
 summary %>%
-  dplyr::filter(coverage=="90%") %>%
+  dplyr::filter(coverage=="95%") %>%
   left_join(., grid_summary) %>%
   ggplot(., aes(x=x, y=number_checklists))+
   geom_point(alpha=0.4)+
@@ -174,3 +175,38 @@ summary %>%
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   geom_smooth(method="lm")
+
+summary %>%
+  dplyr::filter(coverage=="95%") %>%
+  left_join(., grid_summary) %>%
+  ggplot(., aes(x=x, y=total_SR))+
+  geom_point(alpha=0.4)+
+  xlab("Number of eBird checklists necessary for 95% sample coverage")+
+  ylab("Total observed SR")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  geom_smooth(method="lm")
+
+summary %>%
+  dplyr::filter(coverage=="90%") %>%
+  left_join(., grid_summary) %>%
+  ggplot(., aes(x=x, y=total_SR))+
+  geom_point(alpha=0.4)+
+  xlab("Number of eBird checklists necessary for 90% sample coverage")+
+  ylab("Total observed SR")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  geom_smooth(method="lm")
+
+summary %>%
+  dplyr::filter(coverage=="observed") %>%
+  left_join(., grid_summary) %>%
+  ggplot(., aes(x=number_checklists, y=total_SR))+
+  geom_point(alpha=0.4)+
+  xlab("Total number of checklists in that grid cell")+
+  ylab("Total observed SR")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  facet_wrap(~coverage)+
+  scale_x_log10()+
+  scale_y_log10()
