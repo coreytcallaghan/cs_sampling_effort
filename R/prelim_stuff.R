@@ -161,9 +161,14 @@ summary %>%
 
 summary %>%
   dplyr::filter(coverage!="observed") %>%
-  ggplot(., aes(x=coverage, y=x))+
+  ggplot(., aes(x=coverage, y=x, fill=coverage))+
   geom_violin()+
-  coord_flip()
+  coord_flip()+
+  ylab("Number of eBird checklists")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_fill_brewer(palette="Dark2")+
+  guides(fill=FALSE)
 
 summary %>%
   dplyr::filter(coverage=="90%") %>%
