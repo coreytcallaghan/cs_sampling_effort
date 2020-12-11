@@ -29,7 +29,7 @@ ggplot(grid_summary, aes(x=number_checklists))+
 
 # get data for a well-sampled grid to test iNext out
 ex_grid <- bird_dat %>%
-  dplyr::filter(grid_id==289)
+  dplyr::filter(grid_id==153)
 
 # create a matrix of species x site (sampling event)
 # using presence/absence only data
@@ -48,14 +48,28 @@ temp_inext <- as.incfreq(temp)
 # now run iNext on the data
 # specify knots
 k <- ncol(temp)
-out <- iNEXT(temp_inext, datatype="incidence_freq", knots=k, nboot=20)
+out1 <- iNEXT(temp_inext, q=1, datatype="incidence_freq", knots=k, nboot=20)
 
-ggiNEXT(out, type=1)
-ggiNEXT(out, type=2)
-ggiNEXT(out, type=3)
+ggiNEXT(out1, type=1)
+ggiNEXT(out1, type=2)
+ggiNEXT(out1, type=3)
+
+out0 <- iNEXT(temp_inext, q=0, datatype="incidence_freq", knots=k, nboot=20)
+
+ggiNEXT(out0, type=1)
+ggiNEXT(out0, type=2)
+ggiNEXT(out0, type=3)
+
+out2 <- iNEXT(temp_inext, q=2, datatype="incidence_freq", knots=k, nboot=20)
+
+ggiNEXT(out2, type=1)
+ggiNEXT(out2, type=2)
+ggiNEXT(out2, type=3)
 
 # get the data
-data_from_inext <- fortify.iNEXT(out, type=2)
+data_from_inext1 <- fortify.iNEXT(out1, type=2)
+data_from_inext0 <- fortify.iNEXT(out0, type=2)
+data_from_inext2 <- fortify.iNEXT(out2, type=2)
 
 
 # write a function to apply to each grid
