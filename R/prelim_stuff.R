@@ -6,6 +6,7 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 
+source("R/functions_from_Chao_2020.R")
 
 # read in data and join with grids
 # start with 20 km grid cell size
@@ -29,7 +30,7 @@ ggplot(grid_summary, aes(x=number_checklists))+
 
 # get data for a well-sampled grid to test iNext out
 ex_grid <- bird_dat %>%
-  dplyr::filter(grid_id==153)
+  dplyr::filter(grid_id==14)
 
 # create a matrix of species x site (sampling event)
 # using presence/absence only data
@@ -126,7 +127,17 @@ summarize_coverage <- function(grid){
   
   summary_df <- bind_rows(observed, cov_90_percent, cov_95_percent) %>%
     mutate(grid_id=grid) %>%
-    right_join(., full)
+    right_join(., full) %>%
+    mutate(analysis="iNEXT")
+  
+  q = seq(0,2,0.1)
+  B <- 100
+  
+  sampling_profile <- sc_profile(temp_inext, datatype="incidence", q=q, B=B, conf=0.95) %>%
+    mutate(grid_id=grid) %>%
+    mutate(analysis="sampling_profile") %>%
+    rename(y.lwr=LCL) %>%
+    rename(y.upr=UCL)
     
   return(summary_df)
   
