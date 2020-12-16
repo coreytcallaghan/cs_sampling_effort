@@ -59,7 +59,7 @@ grid_analysis <- function(file_name, grid_size){
       rename(y.lwr=LCL) %>%
       rename(y.upr=UCL)
     
-    return(summary_profile)
+    return(sampling_profile)
     
   }
   
