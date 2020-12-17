@@ -16,12 +16,10 @@ library(randomForest)
 predict_checklists <- function(year, grid_size) {
   
   
-  dat <- readRDS(paste0("Intermediate grid level data/sampling_profile/20km_bcr31_", year, ".RDS"))
+  dat <- readRDS(paste0("Intermediate grid level data/sampling_profile/", grid_size, "km_bcr31_", year, ".RDS"))
   
   preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_size, "km.csv")) %>%
     dplyr::select(-`system:index`, -`.geo`)
-  
-  grids <- sf::st_read(paste0("Spatial data/", grid_size, "km_grids_shape/study_extent_grids_", grid_size, "km.geojson"))
   
   # run a function for a given level of q
   different_order <- function(q){
@@ -110,8 +108,9 @@ predict_checklists <- function(year, grid_size) {
 }
 
 
+final_results <- bind_rows(lapply(c(2014:2019), function(x){predict_checklists(x, 20)}))
 
-
+saveRDS(final_results, "Results/20_km_grid_prediction_results.RDS")
 
 
 
