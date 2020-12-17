@@ -84,6 +84,8 @@ file_names <- c("bcr31_2014_data.RDS", "bcr31_2015_data.RDS", "bcr31_2016_data.R
 
 lapply(file_names, function(x){grid_analysis(x, 20)})
 
+lapply(file_names, function(x){grid_analysis(x, 10)})
 
+lapply(file_names, function(x){grid_analysis(x, 5)})
 
-
+lapply(file_names, function(x){grid_analysis(x, 1)})
