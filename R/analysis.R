@@ -90,7 +90,10 @@ predict_checklists <- function(year, grid_size) {
         mutate(q=q) %>%
         mutate(year=year) %>%
         mutate(grid_size=grid_size) %>%
-        mutate(model_r2=r2)
+        mutate(model_r2=r2) %>%
+        left_join(., dat %>% 
+                    dplyr::select(grid_id, number_checklists) %>%
+                    distinct(), by="grid_id")
       
       return(full_prediction)
   
@@ -108,81 +111,17 @@ predict_checklists <- function(year, grid_size) {
 }
 
 
-final_results <- bind_rows(lapply(c(2014:2019), function(x){predict_checklists(x, 20)}))
+final_results_20 <- bind_rows(lapply(c(2014:2019), function(x){predict_checklists(x, 20)}))
 
-saveRDS(final_results, "Results/20_km_grid_prediction_results.RDS")
-
-
+saveRDS(final_results_20, "Results/20_km_grid_prediction_results.RDS")
 
 
+final_results_10 <- bind_rows(lapply(c(2014:2019), function(x){predict_checklists(x, 10)}))
+
+saveRDS(final_results_10, "Results/10_km_grid_prediction_results.RDS")
 
 
+final_results_5 <- bind_rows(lapply(c(2014:2019), function(x){predict_checklists(x, 5)}))
 
-
-dat <- readRDS("Intermediate grid level data/sampling_profile/20km_bcr31_2014.RDS")
-
-dat %>% 
-  dplyr::filter(Order.q==0) %>%
-  ggplot(., aes(y=Estimate, x=number_checklists))+
-  geom_point()+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))
-
-
-dat %>% 
-  dplyr::filter(Order.q %in% c(0, 1, 2)) %>%
-  ggplot(., aes(y=Estimate, x=number_checklists, color=as.factor(Order.q), group=as.factor(Order.q)))+
-  geom_point()+
-  geom_smooth()+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  scale_x_log10()
-
-dat %>% 
-  dplyr::filter(Order.q %in% c(0, 1, 2)) %>%
-  ggplot(., aes(y=Estimate, x=number_checklists, color=as.factor(Order.q), group=as.factor(Order.q)))+
-  geom_point()+
-  geom_smooth()+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  scale_x_log10()+
-  scale_y_log10()
-
-preds <- read_csv("Data/predictor_data_for_grids/stats_20km.csv")
-
-
-dat_combined <- dat %>%
-  left_join(., preds, by="grid_id")
-
-q0 <- dat_combined %>%
-  dplyr::filter(Order.q==0)
-
-q1 <- dat_combined %>%
-  dplyr::filter(Order.q==1)
-
-q2 <- dat_combined %>%
-  dplyr::filter(Order.q==2)
-
-grids <- sf::st_read("Spatial data/20_km_grids_shape/study_extent_grids_20km.geojson")
-plot(grids)
-
-# run a model
-mod_q0 <- lm(log10(number_checklists) ~  log10(Estimate) + heterogeneity, data=q0)
-summary(mod_q0)
-
-newdata <- data.frame(heterogeneity=preds$heterogeneity) %>%
-  mutate(Estimate=0.9)
-
-predict_out <- data.frame(predicted_checklists=predict(mod_q0, newdata, se.fit = TRUE)) %>%
-  dplyr::select(1, 2) %>%
-  mutate(grid_id=preds$grid_id) %>%
-  mutate(predicted_checklists=10^predicted_checklists.fit)
-
-plot_dat <- grids %>% 
-  left_join(., predict_out, by="grid_id")
-
-
-ggplot()+
-  geom_sf(data=plot_dat, aes(fill=log10(predicted_checklists)))
-
+saveRDS(final_results_5, "Results/5_km_grid_prediction_results.RDS")
 
