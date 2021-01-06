@@ -3,6 +3,7 @@
 library(dplyr)
 library(ggplot2)
 library(sf)
+library(tidyr)
 
 results_20km <- readRDS("Results/20_km_grid_prediction_results.RDS") %>%
   mutate(q=paste0("q=", as.character(q)))
@@ -76,9 +77,16 @@ results_20km %>%
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   geom_smooth(method="lm")
+
+ggplot(results_20km, aes(x=predicted_checklists, y=number_checklists))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(q~year, ncol=6)+
+  scale_y_log10()+
+  scale_x_log10()
   
 
-ggplot(plot_dat2, aes(x=predicted_checklists))
+
 
 
 
