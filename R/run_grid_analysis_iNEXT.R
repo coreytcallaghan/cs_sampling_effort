@@ -31,6 +31,7 @@ grid_analysis <- function(file_name, grid_size){
     dat <- bird_dat %>%
       dplyr::filter(grid_id==grid)
     
+    cutoff_function <- function(cutoff){
     # create a matrix of species x site (sampling event)
     # using presence/absence only data
     # ignoring abundance data
@@ -38,6 +39,12 @@ grid_analysis <- function(file_name, grid_size){
       group_by(COMMON_NAME, SAMPLING_EVENT_IDENTIFIER) %>% 
       summarize(present=n()) %>%
       mutate(present=1) %>%
+      group_by(COMMON_NAME) %>%
+      mutate(total_obs=n()) %>%
+      mutate(total_lists=length(unique(.$SAMPLING_EVENT_IDENTIFIER))) %>%
+      mutate(percent_lists=(total_obs/total_lists)*100) %>%
+      dplyr::filter(percent_lists>=cutoff) %>%
+      dplyr::select(1:3) %>%
       pivot_wider(names_from=SAMPLING_EVENT_IDENTIFIER, values_from=present, values_fill=0) %>%
       column_to_rownames(var="COMMON_NAME") %>%
       as.data.frame()
@@ -59,6 +66,14 @@ grid_analysis <- function(file_name, grid_size){
       dplyr::select(4, 6:9) %>%
       rename(coverage=method)
     
+    cov_100_percent <- data_from_inext %>%
+      mutate(y=round(y, digits=4)) %>%
+      dplyr::filter(y>=1.000) %>%
+      slice(1) %>%
+      dplyr::select(4, 6:9) %>%
+      rename(coverage=method) %>%
+      mutate(coverage="100%")
+    
     cov_90_percent <- data_from_inext %>%
       dplyr::filter(y>0.9) %>%
       slice(1) %>%
@@ -73,15 +88,19 @@ grid_analysis <- function(file_name, grid_size){
       rename(coverage=method) %>%
       mutate(coverage="95%")
     
-    full <- data.frame(coverage=c("observed", "90%", "95%"))
+    full <- data.frame(coverage=c("observed", "90%", "95%", "100%"))
     
-    summary_df <- bind_rows(observed, cov_90_percent, cov_95_percent) %>%
+    summary_df <- bind_rows(observed, cov_90_percent, cov_95_percent, cov_100_percent) %>%
       mutate(grid_id=grid) %>%
       right_join(., full) %>%
-      mutate(analysis="iNEXT")
+      mutate(analysis="iNEXT") %>%
+      mutate(percent_cutoff=cutoff)
     
     return(summary_df)
     
+    }
+    
+    summary_final <- bind_rows(lapply(c(0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5), cutoff_function))
   }
   
   # now apply the function for any grid that has >25 eBird checklists
