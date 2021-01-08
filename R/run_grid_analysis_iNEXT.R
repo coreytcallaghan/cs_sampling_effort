@@ -54,8 +54,8 @@ grid_analysis <- function(file_name, grid_size){
     
     # now run iNext on the data
     # specify knots
-    k <- ncol(temp)
-    out <- iNEXT(temp_inext, datatype="incidence_freq", knots=k, nboot=100)
+    #k <- ncol(temp)
+    out <- iNEXT(temp_inext, datatype="incidence_freq", nboot=50)
     
     # get the data
     data_from_inext <- fortify.iNEXT(out, type=2)
@@ -100,7 +100,7 @@ grid_analysis <- function(file_name, grid_size){
     
     }
     
-    summary_final <- bind_rows(lapply(c(0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5), cutoff_function))
+    summary_final <- bind_rows(lapply(c(0, 1, 2, 3, 4, 5), cutoff_function))
   }
   
   # now apply the function for any grid that has >25 eBird checklists
