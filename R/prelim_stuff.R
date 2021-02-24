@@ -97,7 +97,7 @@ summarize_coverage <- function(grid){
   
   # now run iNext on the data
   # specify knots
-  k <- ncol(temp)
+  k <- 50
   out <- iNEXT(temp_inext, datatype="incidence_freq", knots=k, nboot=100)
   
   # get the data

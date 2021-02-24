@@ -134,10 +134,11 @@ predict_checklists <- function(year, grid_size) {
   
   newdata_q0 <- q0_dat %>%
     dplyr::select(total_SR) %>%
-    mutate(number_checklists=1000)
+    mutate(number_checklists=10)
   
   pred <- data.frame(predicted_estimate=predict(q0_mod, newdata = newdata_q0)) %>%
-    mutate(observed_checklists=q0_dat$number_checklists)
+    mutate(observed_checklists=q0_dat$number_checklists) %>%
+    mutate(checklists_for_prediction=10)
   
   
   
