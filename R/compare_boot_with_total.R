@@ -46,7 +46,10 @@ summary %>%
   ggplot(., aes(x=heterogeneity, y=mean_Estimate))+
   geom_point()+
   facet_wrap(~Order.q, scales="free")+
-  geom_smooth(method="lm")
+  geom_smooth(method="lm")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  ylab("Bootstrapped estimate (mean)")
 
 
 total %>%
@@ -55,7 +58,10 @@ total %>%
   ggplot(., aes(x=heterogeneity, y=Estimate))+
   geom_point()+
   facet_wrap(~Order.q, scales="free")+
-  geom_smooth(method="lm")
+  geom_smooth(method="lm")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  ylab("Total observed estimate")
 
 
 
