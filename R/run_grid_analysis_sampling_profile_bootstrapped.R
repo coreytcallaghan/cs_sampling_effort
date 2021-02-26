@@ -37,12 +37,12 @@ grid_analysis <- function(file_name, grid_size){
     # selecting 20 eBird checklists
     # to get the estimate from
     # and repeat this 50 times
-    boot_function <- function(draw_number){
+    boot_function <- function(draw_number, number_samples){
       
       random_checklists <- dat %>%
         dplyr::select(SAMPLING_EVENT_IDENTIFIER) %>%
         distinct() %>%
-        sample_n(10)
+        sample_n(number_samples)
       
       random_dat <- dat %>%
         dplyr::filter(SAMPLING_EVENT_IDENTIFIER %in% random_checklists$SAMPLING_EVENT_IDENTIFIER)
@@ -73,13 +73,21 @@ grid_analysis <- function(file_name, grid_size){
         rename(y.lwr=LCL) %>%
         rename(y.upr=UCL) %>%
         mutate(draw=draw_number) %>%
-        mutate(observed_SR=length(unique(random_dat$COMMON_NAME)))
+        mutate(observed_SR=length(unique(random_dat$COMMON_NAME))) %>%
+        mutate(sample_level=number_samples)
       
       return(sampling_profile)
     }
     
-    results <- bind_rows(lapply(c(1:50), boot_function))
+    results_5 <- bind_rows(lapply(c(1:50), function(x){boot_function(x, 5)}))
+    results_10 <- bind_rows(lapply(c(1:50), function(x){boot_function(x, 10)}))
+    results_15 <- bind_rows(lapply(c(1:50), function(x){boot_function(x, 15)}))
+    results_20 <- bind_rows(lapply(c(1:50), function(x){boot_function(x, 20)}))
     
+    results <- bind_rows(results_5,
+                         results_10,
+                         results_15,
+                         results_20)
     return(results)
   }
   
