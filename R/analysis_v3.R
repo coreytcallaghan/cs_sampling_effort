@@ -21,6 +21,9 @@ summarize_data_function <- function(year, grid_size){
   dat <- readRDS(paste0("Intermediate grid level data/sampling_profile_boot/", grid_size, "km_bcr31_", year, ".RDS")) %>%
     dplyr::filter(Order.q %in% c(0, 2))
   
+  dat2 <- readRDS(paste0("Intermediate grid level data/sampling_profile/", grid_size, "km_bcr31_", year, ".RDS")) %>%
+    dplyr::filter(Order.q %in% c(0, 2))
+  
   preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_size, "km.csv")) %>%
     dplyr::select(-`system:index`, -`.geo`)
   
@@ -79,7 +82,10 @@ summarize_data_function <- function(year, grid_size){
     left_join(., dat %>% 
                 dplyr::select(grid_id, number_checklists, total_SR) %>%
                 distinct()) %>%
-    mutate(q=paste0("q=", Order.q))
+    mutate(q=paste0("q=", Order.q)) %>%
+    left_join(., dat2 %>%
+                dplyr::select(Estimate, grid_id, Order.q) %>%
+                rename(total_completeness=Estimate))
   
   return(filtered_dat)
   
@@ -369,6 +375,19 @@ modelling_function <- function(year, grid_size){
   
 }
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
 
   # see relationship
