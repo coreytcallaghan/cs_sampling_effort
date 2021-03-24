@@ -8,6 +8,7 @@ library(ggplot2)
 library(tidyr)
 library(scales)
 library(sf)
+library(patchwork)
 
 # read in grids spatial data
 grids_5 <- st_read("Spatial data/5_km_grids_shape/study_extent_grids_5km.geojson")
@@ -23,16 +24,47 @@ year_name="2017"
 pd_dat <- readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_20_0.RDS")) %>%
   bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_20_2.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_10_0.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_10_2.RDS")))
+  bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_10_2.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_5_0.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/partial_dependence_data/pd_", year_name, "_5_2.RDS")))
 
-pd_dat %>%
+grid_10_pd <- pd_dat %>%
   dplyr::filter(grid_size==10) %>%
   ggplot(., aes(x=completeness, y=number_checklists, color=variable))+
   geom_line()+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   scale_color_brewer(palette="Set1")+
-  facet_wrap(Order.q~variable, scales="free")
+  facet_wrap(Order.q~variable, scales="free")+
+  ggtitle("10km2 grid")
+
+grid_10_pd
+
+grid_20_pd <- pd_dat %>%
+  dplyr::filter(grid_size==20) %>%
+  ggplot(., aes(x=completeness, y=number_checklists, color=variable))+
+  geom_line()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_color_brewer(palette="Set1")+
+  facet_wrap(Order.q~variable, scales="free")+
+  ggtitle("20km2 grid")
+
+grid_20_pd
+
+grid_5_pd <- pd_dat %>%
+  dplyr::filter(grid_size==5) %>%
+  ggplot(., aes(x=completeness, y=number_checklists, color=variable))+
+  geom_line()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_color_brewer(palette="Set1")+
+  facet_wrap(Order.q~variable, scales="free")+
+  ggtitle("5km2 grid")
+
+grid_5_pd
+
+grid_20_pd + grid_10_pd + grid_5_pd + plot_layout(ncol=1)
 
 # observed prediction data
 observed_prediction_dat <- readRDS(paste0("Results/observed_prediction/observed_", year_name, "_20_0_0.95.RDS")) %>%
@@ -68,6 +100,19 @@ ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklis
   ylab("Number of checklists to meet 95% completeness")+
   scale_fill_brewer(palette="Set1")
 
+#OR
+
+ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(Order.q)))+
+  geom_violin(position=position_dodge())+
+  #stat_summary(fun='mean', geom='point', size=2, col='black')+
+  coord_flip()+
+  scale_y_log10()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  xlab("Grid size (km2)")+
+  ylab("Number of checklists to meet 95% completeness")+
+  scale_fill_brewer(palette="Set1")
+
 
 # full prediction data (mainly for spatial plotting)
 full_prediction_dat <- readRDS(paste0("Results/full_prediction/full_", year_name, "_20_0_0.95.RDS")) %>%
@@ -78,24 +123,36 @@ full_prediction_dat <- readRDS(paste0("Results/full_prediction/full_", year_name
   bind_rows(readRDS(paste0("Results/full_prediction/full_", year_name, "_5_2_0.95.RDS")))
 
 # make 20 km grid map
-plot_dat <- grids_20 %>%
+plot_dat_20 <- grids_20 %>%
   left_join(., full_prediction_dat %>%
               dplyr::filter(grid_size==20))
 
-plot_dat <- grids_20 %>%
-  left_join(., results_20km, by="grid_id") %>%
-  dplyr::filter(q %in% c("q=0", "q=2")) %>%
-  dplyr::filter(coverage=="95%")
-
 ggplot()+
-  geom_sf(data=plot_dat, aes(fill=log10(predicted_checklists)))+
-  facet_wrap(~model_r2)+
+  geom_sf(data=plot_dat_20, aes(fill=log10(predicted_checklists)))+
+  facet_wrap(~Order.q)+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   scale_fill_viridis_c(name="Number of samples (log10):")+
   #scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.8, 2.1, 2.4), labels=c(63, 126, 250))+
   theme(legend.position="bottom")+
-  theme(axis.text=element_text(size=6))
+  theme(axis.text=element_text(size=6))+
+  ggtitle("20 km2 grids")
+
+# make 10 km grid map
+plot_dat_10 <- grids_10 %>%
+  left_join(., full_prediction_dat %>%
+              dplyr::filter(grid_size==10))
+
+ggplot()+
+  geom_sf(data=plot_dat_10, aes(fill=log10(predicted_checklists)))+
+  facet_wrap(~Order.q)+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_fill_viridis_c(name="Number of samples (log10):")+
+  #scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.8, 2.1, 2.4), labels=c(63, 126, 250))+
+  theme(legend.position="bottom")+
+  theme(axis.text=element_text(size=6))+
+  ggtitle("10 km2 grids")
 
 
 
