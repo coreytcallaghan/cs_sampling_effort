@@ -226,7 +226,8 @@ ggplot(dat_20, aes(x=number_checklists, y=mean_completeness,
                    group=year, color=q))+
   geom_point()+
   scale_x_log10()+
-  facet_wrap(~q, scales="free")
+  facet_wrap(~q, scales="free")+
+  geom_smooth(method="lm")
 
 analysis_dat <- dat_20 %>%
   bind_rows(dat_10)
@@ -383,7 +384,7 @@ analysis_function <- function(year_name, grid_resolution, data){
       xlab("")+
       ylab("")+
       theme(axis.text.x=element_text(angle=45, hjust=1))+
-      ggtitle(paste0(year_name, "; ", grid_resolution, "km; q=", q))
+      ggtitle(paste0(year_name, "; ", grid_resolution, "km; q=", order))
     
     # run a random forest model
   set.seed(123)
