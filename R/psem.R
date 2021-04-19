@@ -80,34 +80,60 @@ output <- inner_join(output,preds)
 
 
 #look at some correlations among everything
+names(output)[which(names(output)=="Estimate")] <- "sampling_coverage"
+output$log.number_checklists <- log(output$number_checklists)
+names(output) <- gsub("-","_",names(output))
+
+#lets look for q=0
 output0 <- subset(output,order==0)#keeping it simple, intitially
-output0$log.number_checklists <- log(output0$number_checklists)
-pairs(output0[,c("Estimate","t","qD","log.number_checklists","total_SR","heterogeneity")])
-names(output0)[which(names(output0)=="Estimate")] <- "sampling_coverage"
+pairs(output0[,c("sampling_coverage","t","qD",
+                 "log.number_checklists","total_SR","heterogeneity")])
 
-#predict the number of checklists for Estimate = 95
-lm1 <- lm(log(number_checklists) ~ sampling_coverage + qD, data=output0)
-summary(lm1)
-car::avPlots(lm1)
-newdata <- output0
-newdata$sampling_coverage <- 0.95
-newdata$needed_checklists <- predict(lm1,newdata=newdata)
-qplot(needed_checklists,qD,data=newdata)+scale_x_log10()
+# #predict the number of checklists for Estimate = 95 using qD
+# lm1 <- lm(log(number_checklists) ~ sampling_coverage + qD, data=output0)
+# summary(lm1)
+# car::avPlots(lm1)
+# newdata <- output0
+# newdata$sampling_coverage <- 0.95
+# newdata$needed_checklists <- predict(lm1,newdata=newdata)
+# qplot(needed_checklists,qD,data=newdata)+scale_x_log10()
+# 
+# #predict land use effects on diversity
+options(na.action = "na.fail")
+lm1 <- lm(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction,data=output0)
+dd <- MuMIn::dredge(lm1)
+subset(dd, delta < 2)
 
-#predict land use effects on diversity
-names(output0) <- gsub("-","",names(output0))
-lm1 <- lm(qD ~ heterogeneity + urbancoverfraction + waterpermanentcoverfraction +
-            treecoverfraction,data=output0)
-car::vif(lm1)
-summary(lm1)
+
 
 #link models together using piecewise sem
 library(piecewiseSEM)
 psem1 = psem(
-  lm(sampling_coverage ~log(number_checklists), data=output0),
-  lm(log(number_checklists) ~ qD + urbancoverfraction, data=output0),
-  lm(qD ~ heterogeneity + urbancoverfraction + waterpermanentcoverfraction +
-       treecoverfraction,data=output0)
+  lm(sampling_coverage ~ total_SR + shrub_coverfraction, data=output0),
+  lm(log.number_checklists ~ total_SR + urban_coverfraction, data=output0),
+  lm(total_SR ~ heterogeneity + urban_coverfraction + shrub_coverfraction,data=output0)
+)
+
+summary(psem1, .progressBar = FALSE)
+plot(psem1)
+
+
+#and for q=2
+output2 <- subset(output,order==2)
+
+# #predict land use effects on diversity
+options(na.action = "na.fail")
+lm1 <- lm(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction,data=output2)
+dd <- MuMIn::dredge(lm1)
+subset(dd, delta < 2)
+
+#link models together using piecewise sem
+library(piecewiseSEM)
+psem1 = psem(
+  lm(sampling_coverage ~ log.number_checklists + urban_coverfraction, 
+     data=output2),
+  lm(log.number_checklists ~ total_SR + urban_coverfraction, data=output2),
+  lm(total_SR ~ heterogeneity + urban_coverfraction + shrub_coverfraction,data=output2)
 )
 
 summary(psem1, .progressBar = FALSE)
