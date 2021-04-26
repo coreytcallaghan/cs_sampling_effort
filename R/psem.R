@@ -4,15 +4,20 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library(readr)
+library(tidyverse)
 
 source("R/functions_from_Chao_2020.R")
 
 options(tidyverse.quiet = TRUE)
 
 #pull out the data for one year and grid size
-file_name <- "bcr31_2019_data.RDS"
-grid_size <- 20
+#file_name <- "bcr31_2019_data.RDS"
+#grid_size <- 20
 
+### function for each grid and file ########################
+
+getData <- function(file_name,grid_size){
+  
 # read in data for the above years and grid size
 bird_dat <- readRDS(paste0("Data/", file_name)) %>%
     left_join(., readRDS(paste0("Data/grid_lookups/", grid_size, "km_grid_lookup_", gsub("_data", "", file_name))))
@@ -73,67 +78,89 @@ output <- plyr::ldply(grid,gridFun)
 #add on summary statistics too
 output <- inner_join(output,grid_summary)
 
+#add on file and grid
+output$grid_size <- grid_size
+output$file_name <- file_name
+
+return(output)
+
+}
+
+### apply function #############################
+
+#get list of files
+myfiles <- list.files("Data/") %>% str_subset("bcr")
+#allOutput <- plyr::ldply(myfiles,function(x)getData(x,10))
+#saveRDS(allOutput,file="allOutput_10.RData")
+
+#ran for each grid size
+
+### merge with land use #########################
+
+#pick a grid size
+output <- readRDS("allOutput_5.RData")
+grid_size <- 5
+
 #and also add on land use data
 preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_size, "km.csv")) %>%
   dplyr::select(-`system:index`, -`.geo`)
 output <- inner_join(output,preds)
 
+### cleaning ################################
 
-#look at some correlations among everything
 names(output)[which(names(output)=="Estimate")] <- "sampling_coverage"
 output$log.number_checklists <- log(output$number_checklists)
 names(output) <- gsub("-","_",names(output))
 
-#lets look for q=0
-output0 <- subset(output,order==0)#keeping it simple, intitially
+### q = 0 ##################################
+
+output0 <- subset(output,order==0)
 pairs(output0[,c("sampling_coverage","t","qD",
                  "log.number_checklists","total_SR","heterogeneity")])
+output0$heterogeneity <- scale(output0$heterogeneity) 
 
-# #predict the number of checklists for Estimate = 95 using qD
-# lm1 <- lm(log(number_checklists) ~ sampling_coverage + qD, data=output0)
-# summary(lm1)
-# car::avPlots(lm1)
-# newdata <- output0
-# newdata$sampling_coverage <- 0.95
-# newdata$needed_checklists <- predict(lm1,newdata=newdata)
-# qplot(needed_checklists,qD,data=newdata)+scale_x_log10()
-# 
-# #predict land use effects on diversity
+#examine land use effects on diversity
+library(lme4)
 options(na.action = "na.fail")
-lm1 <- lm(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction,data=output0)
+lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name),data=output0)
 dd <- MuMIn::dredge(lm1)
 subset(dd, delta < 2)
-
 
 
 #link models together using piecewise sem
 library(piecewiseSEM)
 psem1 = psem(
-  lm(sampling_coverage ~ total_SR + shrub_coverfraction, data=output0),
-  lm(log.number_checklists ~ total_SR + urban_coverfraction, data=output0),
-  lm(total_SR ~ heterogeneity + urban_coverfraction + shrub_coverfraction,data=output0)
+  lmer(sampling_coverage ~ total_SR + log.number_checklists + (1|file_name), data=output0),
+  lmer(log.number_checklists ~ total_SR + (1|file_name), data=output0),
+  lmer(total_SR ~ heterogeneity + bare_coverfraction + urban_coverfraction + 
+         tree_coverfraction + water_seasonal_coverfraction + (1|file_name),data=output0)
 )
 
 summary(psem1, .progressBar = FALSE)
 plot(psem1)
 
+### q = 2 ###############################
 
-#and for q=2
-output2 <- subset(output,order==2)
+output2 <- subset(output,order==0)
+pairs(output2[,c("sampling_coverage","t","qD",
+                 "log.number_checklists","total_SR","heterogeneity")])
+output2$heterogeneity <- scale(output2$heterogeneity) 
 
-# #predict land use effects on diversity
+#examine land use effects on diversity
+library(lme4)
 options(na.action = "na.fail")
-lm1 <- lm(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction,data=output2)
+lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name),data=output2)
 dd <- MuMIn::dredge(lm1)
 subset(dd, delta < 2)
+
 
 #link models together using piecewise sem
 library(piecewiseSEM)
 psem1 = psem(
-  lm(sampling_coverage ~ log.number_checklists + urban_coverfraction, 
-     data=output2),
-  lm(log.number_checklists ~ total_SR + urban_coverfraction, data=output2),
-  lm(total_SR ~ heterogeneity + urban_coverfraction + shrub_coverfraction,data=output2)
+  lmer(sampling_coverage ~ total_SR + log.number_checklists + (1|file_name), data=output2),
+  lmer(log.number_checklists ~ total_SR + (1|file_name), data=output2),
+  lmer(total_SR ~ heterogeneity + bare_coverfraction + urban_coverfraction + 
+         tree_coverfraction + water_seasonal_coverfraction + (1|file_name),data=output2)
 )
 
 summary(psem1, .progressBar = FALSE)
