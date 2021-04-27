@@ -66,27 +66,27 @@ saveRDS(grid_5_trimmed, "Spatial data/study_extent_grids_5km.RDS")
 st_write(grid_5_trimmed, "Spatial data/5_km_grids_shape/study_extent_grids_5km.shp")
 st_write(grid_5_trimmed, "Spatial data/5_km_grids_shape/study_extent_grids_5km.geojson")
 
-# repeat above, but for 1 km grids
-grid_1 <- st_make_grid(bcr_31, cellsize=1000) %>%
+# repeat above, but for 15 km grids
+grid_15 <- st_make_grid(bcr_31, cellsize=15000) %>%
   st_as_sf() 
 
-grid_1_inter <- grid_1 %>%
+grid_15_inter <- grid_15 %>%
   st_intersects(bcr_31) %>%
   as.data.frame()
 
-grid_1_trimmed <- grid_1 %>%
+grid_15_trimmed <- grid_15 %>%
   mutate(row.id=1:nrow(.)) %>%
-  dplyr::filter(row.id %in% grid_1_inter$row.id) %>%
+  dplyr::filter(row.id %in% grid_15_inter$row.id) %>%
   dplyr::select(-row.id) %>%
   mutate(grid_id=1:nrow(.)) %>%
   dplyr::select(grid_id, x) %>%
   rename(geometry=x) %>%
   st_transform(4326)
 
-# write out 1 km grids
-saveRDS(grid_1_trimmed, "Spatial data/study_extent_grids_1km.RDS")
-st_write(grid_1_trimmed, "Spatial data/1_km_grids_shape/study_extent_grids_1km.shp")
-st_write(grid_1_trimmed, "Spatial data/1_km_grids_shape/study_extent_grids_1km.geojson")
+# write out 15 km grids
+saveRDS(grid_15_trimmed, "Spatial data/study_extent_grids_15km.RDS")
+st_write(grid_15_trimmed, "Spatial data/15_km_grids_shape/study_extent_grids_15km.shp")
+st_write(grid_15_trimmed, "Spatial data/15_km_grids_shape/study_extent_grids_15km.geojson")
 
 # repeat above, but for 20 km grids
 grid_20 <- st_make_grid(bcr_31, cellsize=20000) %>%
@@ -109,3 +109,48 @@ grid_20_trimmed <- grid_20 %>%
 saveRDS(grid_20_trimmed, "Spatial data/study_extent_grids_20km.RDS")
 st_write(grid_20_trimmed, "Spatial data/20_km_grids_shape/study_extent_grids_20km.shp")
 st_write(grid_20_trimmed, "Spatial data/20_km_grids_shape/study_extent_grids_20km.geojson")
+
+# repeat above, but for 25 km grids
+grid_25 <- st_make_grid(bcr_31, cellsize=25000) %>%
+  st_as_sf() 
+
+grid_25_inter <- grid_25 %>%
+  st_intersects(bcr_31) %>%
+  as.data.frame()
+
+grid_25_trimmed <- grid_25 %>%
+  mutate(row.id=1:nrow(.)) %>%
+  dplyr::filter(row.id %in% grid_25_inter$row.id) %>%
+  dplyr::select(-row.id) %>%
+  mutate(grid_id=1:nrow(.)) %>%
+  dplyr::select(grid_id, x) %>%
+  rename(geometry=x) %>%
+  st_transform(4326)
+
+# write out 25 km grids
+saveRDS(grid_25_trimmed, "Spatial data/study_extent_grids_25km.RDS")
+st_write(grid_25_trimmed, "Spatial data/25_km_grids_shape/study_extent_grids_25km.shp")
+st_write(grid_25_trimmed, "Spatial data/25_km_grids_shape/study_extent_grids_25km.geojson")
+
+# repeat above, but for 30 km grids
+grid_30 <- st_make_grid(bcr_31, cellsize=30000) %>%
+  st_as_sf() 
+
+grid_30_inter <- grid_30 %>%
+  st_intersects(bcr_31) %>%
+  as.data.frame()
+
+grid_30_trimmed <- grid_30 %>%
+  mutate(row.id=1:nrow(.)) %>%
+  dplyr::filter(row.id %in% grid_30_inter$row.id) %>%
+  dplyr::select(-row.id) %>%
+  mutate(grid_id=1:nrow(.)) %>%
+  dplyr::select(grid_id, x) %>%
+  rename(geometry=x) %>%
+  st_transform(4326)
+
+# write out 20 km grids
+saveRDS(grid_30_trimmed, "Spatial data/study_extent_grids_30km.RDS")
+st_write(grid_30_trimmed, "Spatial data/30_km_grids_shape/study_extent_grids_30km.shp")
+st_write(grid_30_trimmed, "Spatial data/30_km_grids_shape/study_extent_grids_30km.geojson")
+
