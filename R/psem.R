@@ -98,8 +98,8 @@ myfiles <- list.files("Data/") %>% str_subset("bcr")
 ### merge with land use #########################
 
 #pick a grid size
-output <- readRDS("allOutput_5.RData")
-grid_size <- 5
+output <- readRDS("Results/psem_df/allOutput_10.RData")
+grid_size <- 10
 
 #and also add on land use data
 preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_size, "km.csv")) %>%
@@ -108,60 +108,106 @@ output <- inner_join(output,preds)
 
 ### cleaning ################################
 
+library(boot)
+
 names(output)[which(names(output)=="Estimate")] <- "sampling_coverage"
 output$log.number_checklists <- log(output$number_checklists)
+output$logit.sampling_coverage <- log(output$sampling_coverage)
 names(output) <- gsub("-","_",names(output))
 
 ### q = 0 ##################################
 
 output0 <- subset(output,order==0)
-pairs(output0[,c("sampling_coverage","t","qD",
+pairs(output0[,c("logit.sampling_coverage","t","qD",
                  "log.number_checklists","total_SR","heterogeneity")])
 output0$heterogeneity <- scale(output0$heterogeneity) 
 
 #examine land use effects on diversity
 library(lme4)
 options(na.action = "na.fail")
-lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name),data=output0)
+lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name) + (1|grid_id),data=output0)
 dd <- MuMIn::dredge(lm1)
 subset(dd, delta < 2)
 
 
 #link models together using piecewise sem
 library(piecewiseSEM)
-psem1 = psem(
-  lmer(sampling_coverage ~ total_SR + log.number_checklists + (1|file_name), data=output0),
-  lmer(log.number_checklists ~ total_SR + (1|file_name), data=output0),
-  lmer(total_SR ~ heterogeneity + bare_coverfraction + urban_coverfraction + 
-         tree_coverfraction + water_seasonal_coverfraction + (1|file_name),data=output0)
-)
 
+#20km
+psem1 = psem(
+  lmer(logit.sampling_coverage ~ total_SR + log.number_checklists + urban_coverfraction + (1|file_name)+ (1|grid_id), data=output0),
+  lmer(log.number_checklists ~ total_SR + urban_coverfraction + heterogeneity + (1|file_name)+ (1|grid_id), data=output0),
+  lmer(total_SR ~ heterogeneity + urban_coverfraction + (1|file_name)+ (1|grid_id),data=output0)
+)
 summary(psem1, .progressBar = FALSE)
 plot(psem1)
+#Individual R-squared:
+#   
+#               Response method Marginal Conditional
+#logit.sampling_coverage   none     0.23        0.28
+#  log.number_checklists   none     0.84        0.95
+#               total_SR   none     0.36        0.93
+
+
+#10km
+psem1 = psem(
+  lmer(logit.sampling_coverage ~ total_SR + log.number_checklists + urban_coverfraction + shrub_coverfraction + heterogeneity + (1|file_name)+ (1|grid_id), data=output0),
+  lmer(log.number_checklists ~ total_SR + urban_coverfraction + heterogeneity + (1|file_name)+ (1|grid_id), data=output0),
+  lmer(total_SR ~ shrub_coverfraction + heterogeneity + urban_coverfraction + (1|file_name)+ (1|grid_id),data=output0)
+)
+summary(psem1, .progressBar = FALSE)
+plot(psem1)
+#Individual R-squared:
+#   
+#               Response method Marginal Conditional
+#logit.sampling_coverage   none     0.17        0.22
+#  log.number_checklists   none     0.78        0.92
+#               total_SR   none     0.24        0.89
 
 ### q = 2 ###############################
 
-output2 <- subset(output,order==0)
-pairs(output2[,c("sampling_coverage","t","qD",
+output2 <- subset(output,order==2)
+pairs(output2[,c("logit.sampling_coverage","t","qD",
                  "log.number_checklists","total_SR","heterogeneity")])
 output2$heterogeneity <- scale(output2$heterogeneity) 
 
 #examine land use effects on diversity
 library(lme4)
 options(na.action = "na.fail")
-lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name),data=output2)
+lm1 <- lmer(total_SR ~ bare_coverfraction + crops_coverfraction + grass_coverfraction + heterogeneity + urban_coverfraction + shrub_coverfraction + water_permanent_coverfraction +water_seasonal_coverfraction + tree_coverfraction + (1|file_name) + (1|grid_id),data=output2)
 dd <- MuMIn::dredge(lm1)
 subset(dd, delta < 2)
 
 
 #link models together using piecewise sem
 library(piecewiseSEM)
-psem1 = psem(
-  lmer(sampling_coverage ~ total_SR + log.number_checklists + (1|file_name), data=output2),
-  lmer(log.number_checklists ~ total_SR + (1|file_name), data=output2),
-  lmer(total_SR ~ heterogeneity + bare_coverfraction + urban_coverfraction + 
-         tree_coverfraction + water_seasonal_coverfraction + (1|file_name),data=output2)
-)
 
+#20km
+psem1 = psem(
+  lmer(logit.sampling_coverage ~ total_SR + log.number_checklists + urban_coverfraction + bare_coverfraction + (1|file_name)+ (1|grid_id), data=output2),
+  lmer(log.number_checklists ~ total_SR + urban_coverfraction + heterogeneity + (1|file_name)+ (1|grid_id), data=output2),
+  lmer(total_SR ~ heterogeneity + urban_coverfraction + (1|file_name)+ (1|grid_id),data=output2)
+)
 summary(psem1, .progressBar = FALSE)
 plot(psem1)
+# Individual R-squared:
+#   
+#                Response method Marginal Conditional
+# logit.sampling_coverage   none     0.31        0.46
+#   log.number_checklists   none     0.84        0.95
+#                total_SR   none     0.36        0.93
+
+#10km
+psem1 = psem(
+  lmer(logit.sampling_coverage ~ total_SR + log.number_checklists + urban_coverfraction + (1|file_name)+ (1|grid_id), data=output2),
+  lmer(log.number_checklists ~ total_SR + urban_coverfraction + heterogeneity + (1|file_name)+ (1|grid_id), data=output2),
+  lmer(total_SR ~ shrub_coverfraction + heterogeneity + urban_coverfraction + (1|file_name)+ (1|grid_id),data=output2)
+)
+summary(psem1, .progressBar = FALSE)
+plot(psem1)
+# Individual R-squared:
+#   
+#                Response method Marginal Conditional
+# logit.sampling_coverage   none     0.30        0.58
+#   log.number_checklists   none     0.78        0.92
+#                total_SR   none     0.24        0.89
