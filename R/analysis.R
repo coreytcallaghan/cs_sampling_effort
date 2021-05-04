@@ -646,3 +646,99 @@ lapply(c(2014:2019), function(x){analysis_function_v2(x, 15, dat_15)})
 lapply(c(2014:2019), function(x){analysis_function_v2(x, 10, dat_10)})
 lapply(c(2014:2019), function(x){analysis_function_v2(x, 5, dat_5)})  
 
+
+# Write a function that predicts species richness
+# given the landcover variables
+# this mimics the random forest used to predict total number of checklists
+# in the above function
+# but is just focused on species richness
+# that will be later used to make maps
+predict_richness <- function(year_name, grid_resolution, data){
+  
+  preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_resolution, "km.csv")) %>%
+    dplyr::select(-`system:index`, -`.geo`)
+  
+  different_order <- function(order){
+    
+    filtered_dat <- data %>%
+      ungroup() %>%
+      dplyr::filter(Order.q==order) %>%
+      dplyr::filter(year==year_name) %>%
+      dplyr::filter(grid_size==grid_resolution) %>%
+      dplyr::select(heterogeneity, tree, urban, water, 
+                    number_checklists, total_SR) %>%
+      mutate(number_checklists=log10(number_checklists))
+
+    # run a random forest model
+    set.seed(123)
+    samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
+    train <- filtered_dat[samp, ]
+    test <- filtered_dat[-samp, ]
+    
+    mod <- randomForest(log10(total_SR) ~ ., data = train)
+    
+    mod
+    
+    vip(mod)
+    
+    pred <- data.frame(predicted_SR=10^predict(mod, newdata = test)) %>%
+      mutate(observed_SR=test$total_SR)
+    
+    ggplot(pred, aes(x=predicted_SR, y=observed_SR))+
+      geom_point()+
+      scale_x_log10()+
+      scale_y_log10()+
+      geom_smooth(method="lm")+
+      theme_bw()+
+      theme(axis.text=element_text(color="black"))
+    
+    r2 <- pred %>%
+      lm(predicted_SR ~ observed_SR, data=.) %>%
+      summary() %>%
+      .$r.squared
+    
+    apple <- preds %>%
+      dplyr::select(grid_id, heterogeneity, `tree-coverfraction`,
+                    `urban-coverfraction`, `water-seasonal-coverfraction`) %>%
+      rename(tree=`tree-coverfraction`) %>%
+      rename(urban=`urban-coverfraction`) %>%
+      rename(water=`water-seasonal-coverfraction`) %>%
+      left_join(., filtered_dat) %>%
+      mutate(number_checklists=mean(filtered_dat$number_checklists))
+    
+    SR_prediction <- data.frame(predicted_SR=10^predict(mod, newdata=apple)) %>%
+      mutate(grid_id=preds$grid_id) %>%
+      mutate(Order.q=order) %>%
+      mutate(year=year_name) %>%
+      mutate(grid_size=grid_resolution) %>%
+      mutate(model_r2=r2) %>%
+      left_join(., data %>% 
+                  dplyr::filter(year==year_name) %>%
+                  ungroup() %>%
+                  dplyr::select(grid_id, number_checklists, total_SR) %>%
+                  distinct(), by="grid_id")
+    
+    saveRDS(SR_prediction, paste0("Results/SR_prediction/", year_name, "_", grid_resolution, "_", order, ".RDS"))
+    
+  }
+  
+  lapply(c(0, 2), different_order)
+  
+}
+
+lapply(c(2014:2019), function(x){predict_richness(x, 30, dat_30)})
+lapply(c(2014:2019), function(x){predict_richness(x, 25, dat_25)})  
+lapply(c(2014:2019), function(x){predict_richness(x, 20, dat_20)})
+lapply(c(2014:2019), function(x){predict_richness(x, 15, dat_15)})  
+lapply(c(2014:2019), function(x){predict_richness(x, 10, dat_10)})
+lapply(c(2014:2019), function(x){predict_richness(x, 5, dat_5)})
+
+
+
+
+
+
+
+
+
+
