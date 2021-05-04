@@ -77,10 +77,10 @@ summarize_data_function <- function(year, grid_size){
     left_join(., preds, by="grid_id") %>%
     dplyr::select(Order.q, mean_completeness,
                   heterogeneity, `tree-coverfraction`,
-                  `urban-coverfraction`, `water-permanent-coverfraction`) %>%
+                  `urban-coverfraction`, `water-seasonal-coverfraction`) %>%
     rename(tree=`tree-coverfraction`) %>%
     rename(urban=`urban-coverfraction`) %>%
-    rename(water=`water-permanent-coverfraction`) %>%
+    rename(water=`water-seasonal-coverfraction`) %>%
     mutate(grid_size=grid_size) %>%
     mutate(year=year) %>%
     left_join(., dat %>% 
@@ -95,7 +95,10 @@ summarize_data_function <- function(year, grid_size){
   
 }
 
+dat_30 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 30)}))
+dat_25 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 25)}))
 dat_20 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 20)}))
+dat_15 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 15)}))
 dat_10 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 10)}))
 dat_5 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 5)}))  
 
@@ -326,18 +329,10 @@ ggplot(dat_20, aes(y=mean_completeness, x=number_checklists,
   guides(color=FALSE)
 
 
-
-
-
-
-
-
-
-
-
 # Now make a function to run some different analyses
 # for each year/grid size resolution
 # this will save out results from various things
+# This function includes the mean completeness value in the random forest analysis
 analysis_function <- function(year_name, grid_resolution, data){
   
   preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_resolution, "km.csv")) %>%
@@ -365,143 +360,143 @@ analysis_function <- function(year_name, grid_resolution, data){
       ggtitle(paste0(year_name, "; ", grid_resolution, "km; q=", order))
     
     # run a random forest model
-  set.seed(123)
-  samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
-  train <- filtered_dat[samp, ]
-  test <- filtered_dat[-samp, ]
-  
-  mod <- randomForest(log10(number_checklists) ~ ., data = train)
-  
-  mod
-  
-  vip(mod)
-  partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
-  partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
-  
-  pred <- data.frame(predicted_checklists=10^predict(mod, newdata = test)) %>%
-    mutate(observed_checklists=test$number_checklists)
-  
-  ggplot(pred, aes(x=predicted_checklists, y=observed_checklists))+
-    geom_point()+
-    scale_x_log10()+
-    scale_y_log10()+
-    geom_smooth(method="lm")+
-    theme_bw()+
-    theme(axis.text=element_text(color="black"))
-  
-  r2 <- pred %>%
-    lm(predicted_checklists ~ observed_checklists, data=.) %>%
-    summary() %>%
-    .$r.squared
-  
-  partial_dependence <- data.frame(partial(mod, pred.var="total_completeness")) %>%
-    mutate(variable="total_completeness") %>%
-    rename(completeness=total_completeness) %>%
-    mutate(number_checklists=10^yhat) %>%
-    mutate(Order.q=order) %>%
-    mutate(year=year_name) %>%
-    mutate(grid_size=grid_resolution) %>%
-    bind_rows(data.frame(partial(mod, pred.var="mean_completeness")) %>%
-                mutate(variable="mean_completeness") %>%
-                rename(completeness=mean_completeness) %>%
-                mutate(number_checklists=10^yhat) %>%
-                mutate(Order.q=order) %>%
-                mutate(year=year_name) %>%
-                mutate(grid_size=grid_resolution))
-  
-  saveRDS(partial_dependence, paste0("Results/partial_dependence_data/pd_", year_name, "_", grid_resolution, "_", order, ".RDS"))
-  
-  # write a function to make a prediction at different levels of completeness
-  different_completeness <- function(completeness){
+    set.seed(123)
+    samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
+    train <- filtered_dat[samp, ]
+    test <- filtered_dat[-samp, ]
     
-    # first make a prediction based on
-    # the observed data
-    newdata <- filtered_dat %>%
-      mutate(total_completeness=completeness)
+    mod <- randomForest(log10(number_checklists) ~ ., data = train)
     
-    prediction <- data.frame(predicted_checklists=10^predict(mod, newdata=newdata)) %>%
-      bind_cols(data %>%
-               ungroup() %>%
-               dplyr::filter(Order.q==order) %>%
-               dplyr::filter(year==year_name) %>%
-               dplyr::filter(grid_size==grid_resolution) %>%
-               dplyr::select(mean_completeness, heterogeneity,
-                             tree, urban, water, number_checklists,
-                             total_SR, total_completeness, grid_id,
-                             grid_size, year, Order.q))
-      
-    saveRDS(prediction, paste0("Results/observed_prediction/observed_", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
-      
-    # now create dataframe to predict on, using all grid cells
-    # need to impute some things as we don't know everything though
-    # as we don't know the total SR
-    # the mean completeness
-    # or the total completeness in each grid cell
-    # that we want to predict to
-    apple <- preds %>%
-      dplyr::select(grid_id, heterogeneity, `tree-coverfraction`,
-                    `urban-coverfraction`, `water-permanent-coverfraction`) %>%
-      rename(tree=`tree-coverfraction`) %>%
-      rename(urban=`urban-coverfraction`) %>%
-      rename(water=`water-permanent-coverfraction`) %>%
-      left_join(., filtered_dat)
+    mod
     
-    imp <- mice(apple, m=10, maxit=50, meth="pmm", seed=610)
+    vip(mod)
+    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
+    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
-    imp_list <- mice::complete(imp, "long")
+    pred <- data.frame(predicted_checklists=10^predict(mod, newdata = test)) %>%
+      mutate(observed_checklists=test$number_checklists)
     
-    newdata2 <- imp_list %>%
-      group_by(grid_id) %>%
-      summarize(mean_completeness=mean(mean_completeness),
-                number_checklists=mean(number_checklists),
-                total_SR=mean(total_SR),
-                total_completeness=mean(total_completeness)) %>%
-      left_join(apple %>%
-                  dplyr::select(1:5)) %>%
-      mutate(total_completeness=completeness)
+    ggplot(pred, aes(x=predicted_checklists, y=observed_checklists))+
+      geom_point()+
+      scale_x_log10()+
+      scale_y_log10()+
+      geom_smooth(method="lm")+
+      theme_bw()+
+      theme(axis.text=element_text(color="black"))
     
+    r2 <- pred %>%
+      lm(predicted_checklists ~ observed_checklists, data=.) %>%
+      summary() %>%
+      .$r.squared
     
-    full_prediction <- data.frame(predicted_checklists=10^predict(mod, newdata=newdata2)) %>%
-      mutate(grid_id=preds$grid_id) %>%
-      mutate(coverage=paste0(100*completeness, "%")) %>%
+    partial_dependence <- data.frame(partial(mod, pred.var="total_completeness")) %>%
+      mutate(variable="total_completeness") %>%
+      rename(completeness=total_completeness) %>%
+      mutate(number_checklists=10^yhat) %>%
       mutate(Order.q=order) %>%
       mutate(year=year_name) %>%
       mutate(grid_size=grid_resolution) %>%
-      mutate(model_r2=r2) %>%
-      left_join(., data %>% 
-                  dplyr::filter(year==year_name) %>%
-                  ungroup() %>%
-                  dplyr::select(grid_id, number_checklists) %>%
-                  distinct(), by="grid_id")
+      bind_rows(data.frame(partial(mod, pred.var="mean_completeness")) %>%
+                  mutate(variable="mean_completeness") %>%
+                  rename(completeness=mean_completeness) %>%
+                  mutate(number_checklists=10^yhat) %>%
+                  mutate(Order.q=order) %>%
+                  mutate(year=year_name) %>%
+                  mutate(grid_size=grid_resolution))
     
-    saveRDS(full_prediction, paste0("Results/full_prediction/full_", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
+    saveRDS(partial_dependence, paste0("Results/partial_dependence_data/pd_", year_name, "_", grid_resolution, "_", order, ".RDS"))
+    
+    # write a function to make a prediction at different levels of completeness
+    different_completeness <- function(completeness){
+      
+      # first make a prediction based on
+      # the observed data
+      newdata <- filtered_dat %>%
+        mutate(total_completeness=completeness)
+      
+      prediction <- data.frame(predicted_checklists=10^predict(mod, newdata=newdata)) %>%
+        bind_cols(data %>%
+                    ungroup() %>%
+                    dplyr::filter(Order.q==order) %>%
+                    dplyr::filter(year==year_name) %>%
+                    dplyr::filter(grid_size==grid_resolution) %>%
+                    dplyr::select(mean_completeness, heterogeneity,
+                                  tree, urban, water, number_checklists,
+                                  total_SR, total_completeness, grid_id,
+                                  grid_size, year, Order.q))
+      
+      saveRDS(prediction, paste0("Results/observed_prediction/observed_", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
+      
+      # now create dataframe to predict on, using all grid cells
+      # need to impute some things as we don't know everything though
+      # as we don't know the total SR
+      # the mean completeness
+      # or the total completeness in each grid cell
+      # that we want to predict to
+      apple <- preds %>%
+        dplyr::select(grid_id, heterogeneity, `tree-coverfraction`,
+                      `urban-coverfraction`, `water-permanent-coverfraction`) %>%
+        rename(tree=`tree-coverfraction`) %>%
+        rename(urban=`urban-coverfraction`) %>%
+        rename(water=`water-permanent-coverfraction`) %>%
+        left_join(., filtered_dat)
+      
+      imp <- mice(apple, m=10, maxit=50, meth="pmm", seed=610)
+      
+      imp_list <- mice::complete(imp, "long")
+      
+      newdata2 <- imp_list %>%
+        group_by(grid_id) %>%
+        summarize(mean_completeness=mean(mean_completeness),
+                  number_checklists=mean(number_checklists),
+                  total_SR=mean(total_SR),
+                  total_completeness=mean(total_completeness)) %>%
+        left_join(apple %>%
+                    dplyr::select(1:5)) %>%
+        mutate(total_completeness=completeness)
+      
+      
+      full_prediction <- data.frame(predicted_checklists=10^predict(mod, newdata=newdata2)) %>%
+        mutate(grid_id=preds$grid_id) %>%
+        mutate(coverage=paste0(100*completeness, "%")) %>%
+        mutate(Order.q=order) %>%
+        mutate(year=year_name) %>%
+        mutate(grid_size=grid_resolution) %>%
+        mutate(model_r2=r2) %>%
+        left_join(., data %>% 
+                    dplyr::filter(year==year_name) %>%
+                    ungroup() %>%
+                    dplyr::select(grid_id, number_checklists) %>%
+                    distinct(), by="grid_id")
+      
+      saveRDS(full_prediction, paste0("Results/full_prediction/full_", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
+      
+    }
+    
+    # apply this function over different levels of completeness
+    lapply(c(.85, .9, .95, 1), different_completeness)
+    
     
   }
   
-  # apply this function over different levels of completeness
-  lapply(c(.85, .9, .95, 1), different_completeness)
-  
-  
-}
-
   lapply(c(0, 2), different_order)
   
 }
-  
+
+lapply(c(2014:2019), function(x){analysis_function(x, 30, dat_30)})
+lapply(c(2014:2019), function(x){analysis_function(x, 25, dat_25)})
 lapply(c(2014:2019), function(x){analysis_function(x, 20, dat_20)})
-
+lapply(c(2014:2019), function(x){analysis_function(x, 15, dat_15)})
 lapply(c(2014:2019), function(x){analysis_function(x, 10, dat_10)})
-  
-lapply(c(2014:2019), function(x){analysis_function(x, 5, dat_5)})  
-  
-  
+lapply(c(2014:2019), function(x){analysis_function(x, 5, dat_5)})
 
-
-
-# ANother function
-# but now don't do the imputation
-# for SR or total checklists
-# as it doesn't appear to work too well
+# Now do a different function that is mostly repetitive
+# but does not do the imputation
+# and also does not include the mean completeness value in the random forests
+# Now make a function to run some different analyses
+# for each year/grid size resolution
+# this will save out results from various things
+# This function also performs the SEM approach as well
 analysis_function_v2 <- function(year_name, grid_resolution, data){
   
   preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_resolution, "km.csv")) %>%
@@ -526,6 +521,32 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
       ylab("")+
       theme(axis.text.x=element_text(angle=45, hjust=1))+
       ggtitle(paste0(year_name, "; ", grid_resolution, "km; q=", order))
+    
+    # run a psem to better understand the patterns
+    # among coverage, observed SR, checklists
+    # and the habitat variables
+    
+    # first get a df together with transformations
+    # for modelling
+    psem_dat <- data %>%
+      ungroup() %>%
+      dplyr::filter(Order.q==order) %>%
+      dplyr::filter(year==year_name) %>%
+      dplyr::filter(grid_size==grid_resolution) %>%
+      dplyr::select(heterogeneity, tree, urban, water, total_SR,
+                    number_checklists, total_completeness) %>%
+      mutate(log.number_checklists=log(number_checklists)) %>%
+      mutate(logit.sampling_coverage=car::logit(total_completeness))
+    
+    psem1 <- psem(
+      lm(logit.sampling_coverage ~ total_SR + log.number_checklists, data=psem_dat),
+      lm(log.number_checklists ~ total_SR + urban + heterogeneity, data=psem_dat),
+      lm(total_SR ~ heterogeneity + urban + water + tree, data=psem_dat)
+    )
+    summary(psem1, .progressBar = FALSE)
+    plot(psem1)
+    
+    saveRDS(psem1, paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
     
     # run a random forest model
     set.seed(123)
@@ -584,10 +605,10 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
       # that we want to predict to
       apple <- preds %>%
         dplyr::select(grid_id, heterogeneity, `tree-coverfraction`,
-                      `urban-coverfraction`, `water-permanent-coverfraction`) %>%
+                      `urban-coverfraction`, `water-seasonal-coverfraction`) %>%
         rename(tree=`tree-coverfraction`) %>%
         rename(urban=`urban-coverfraction`) %>%
-        rename(water=`water-permanent-coverfraction`) %>%
+        rename(water=`water-seasonal-coverfraction`) %>%
         left_join(., filtered_dat) %>%
         mutate(total_completeness=completeness)
       
@@ -618,9 +639,10 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
   
 }
 
+lapply(c(2014:2019), function(x){analysis_function_v2(x, 30, dat_30)})
+lapply(c(2014:2019), function(x){analysis_function_v2(x, 25, dat_25)})  
 lapply(c(2014:2019), function(x){analysis_function_v2(x, 20, dat_20)})
-
+lapply(c(2014:2019), function(x){analysis_function_v2(x, 15, dat_15)})  
 lapply(c(2014:2019), function(x){analysis_function_v2(x, 10, dat_10)})
-
 lapply(c(2014:2019), function(x){analysis_function_v2(x, 5, dat_5)})  
 
