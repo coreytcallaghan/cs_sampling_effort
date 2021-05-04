@@ -546,7 +546,7 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
     summary(psem1, .progressBar = FALSE)
     plot(psem1)
     
-    saveRDS(psem1, paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, "_", completeness, ".RDS"))
+    saveRDS(psem1, paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, ".RDS"))
     
     # run a random forest model
     set.seed(123)
