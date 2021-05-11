@@ -9,6 +9,7 @@ library(tidyr)
 library(scales)
 library(sf)
 library(patchwork)
+library(piecewiseSEM)
 
 # read in grids spatial data
 grids_5 <- st_read("Spatial data/5_km_grids_shape/study_extent_grids_5km.geojson")
@@ -122,7 +123,7 @@ ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklis
   scale_y_log10()+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  xlab("Grain size (km2)")+
+  xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Number of checklists to meet 95% completeness")+
   scale_fill_brewer(palette="Set1")+
   guides(fill=FALSE)
@@ -134,17 +135,21 @@ ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklis
   scale_y_log10()+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  xlab("Grain size (km2)")+
+  xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Number of checklists to meet 95% completeness")+
   scale_fill_brewer(palette="Set1")
+
+ggsave("Figures/observed_checklists_necessary.png", height=5, width=6.5, units="in")
 
 # Get the summary results
 # for the results text in paper
 # get summary results
+# mean number of checklists and sd
 observed_prediction_dat %>%
   group_by(grid_size, type) %>%
   summarize(mean=mean(predicted_checklists),
-            sd=sd(predicted_checklists))
+            sd=sd(predicted_checklists),
+            N=length(unique(grid_id)))
 
 # Plot the number of checklists needed as a function of grid size
 observed_prediction_dat %>%
@@ -158,8 +163,10 @@ observed_prediction_dat %>%
   xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Number of checklists to meet 95% completeness")+
   scale_color_brewer(palette="Set1")+
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank())+
+  theme(legend.position="bottom")
 
+ggsave("Figures/checklists_needed_vs_grain_size.png", height=5, width=6.5, units="in")
 
 # full prediction data (mainly for spatial plotting)
 full_prediction_dat <- readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_30_0_0.95.RDS")) %>%
@@ -182,9 +189,100 @@ full_prediction_dat %>%
   group_by(grid_size, type) %>%
   dplyr::filter(complete.cases(predicted_checklists)) %>%
   summarize(mean=mean(predicted_checklists),
-            sd=sd(predicted_checklists))
+            sd=sd(predicted_checklists),
+            N=length(unique(grid_id)))
+
+# test the distribution of predicted checklists needed
+# for the observed grid cells and the predicted grid cells
+full_prediction_dat %>%
+  left_join(., observed_prediction_dat %>%
+              dplyr::select(grid_id, grid_size) %>%
+              distinct() %>%
+              mutate(orange="Sampled")) %>%
+  replace_na(list(orange="Unsampled")) %>%
+  ggplot(., aes(x=predicted_checklists, fill=orange))+
+  geom_density(alpha=0.8)+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  facet_wrap(type~grid_size, scales="free")+
+  scale_fill_brewer(palette="Set1")+
+  scale_x_log10()+
+  theme(legend.title=element_blank())+
+  xlab("Predicted checklists to meet 95% completeness")+
+  ylab("Density")
+
+ggsave("Figures/sampled_vs_unsampled_predictions.png", width=8.8, height=7.2, units="in")
+
+
+# Now make a map showing the number of sampled
+# needed to sample species richness in space
+# Will do this for both 10 km2 grain size (and present these in the main results)
+# and also 20 km grain size and present this in supplementary
+# first for 10 km grain size
+# make 10 km grid map
+plot_dat_10 <- grids_10 %>%
+  left_join(., full_prediction_dat %>%
+              dplyr::filter(grid_size==10))
+
+ggplot()+
+  geom_sf(data=plot_dat_10, aes(fill=log10(predicted_checklists)))+
+  facet_wrap(~type)+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.5, 2.0, 2.8), labels=c(32, 100, 631))+
+  theme(legend.position="bottom")+
+  theme(axis.text=element_text(size=6))+
+  ggtitle(bquote("10 "~km^2~"grain size"))
+
+ggsave("Figures/10_km_sampling_effort_map.png", height=6.6, width=6.9, units="in")
+
+# Now make a similar map but for psecies richness
+# based on the random forest for species richness
+# will put the two map figures together in powerpoint!
+SR_prediction <- readRDS(paste0("Results/SR_prediction/", year_name, "_10_0.RDS"))
+
+sr_plot_dat_10 <- grids_10 %>%
+  left_join(., SR_prediction) %>%
+  mutate(title="Species richness")
+
+ggplot()+
+  geom_sf(data=sr_plot_dat_10, aes(fill=log10(predicted_SR)))+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_fill_viridis_c(name="Species richness (log10):", breaks=c(1.9, 2.0, 2.15), labels=c(79, 100, 141))+
+  theme(legend.position="bottom")+
+  theme(axis.text=element_text(size=6))+
+  facet_wrap(~title)+
+  theme(axis.text.y=element_blank())+
+  theme(axis.ticks.y=element_blank())
+
+ggsave("Figures/10_km_species_richness_map.png", height=6.4, width=6.6, units="in")
+
+# Correlation between species richness
+# and the number of checklists needed in each grid cell
+sr_vs_predicted_checklists <- full_prediction_dat %>%
+  dplyr::filter(grid_size==10) %>%
+  dplyr::select(grid_id, type, predicted_checklists) %>%
+  left_join(., SR_prediction %>%
+              dplyr::select(grid_id, predicted_SR))
+
+ggplot(sr_vs_predicted_checklists, aes(x=predicted_checklists, y=predicted_SR, color=type))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_x_log10()+
+  scale_y_log10()+
+  scale_color_brewer(palette="Set1")+
+  theme(legend.position="none")+
+  theme(legend.title=element_blank())+
+  xlab("Predicted checklists to meet 95% completeness (log10)")+
+  ylab("Predicted species richness (log10)")
+
+ggsave("Figures/predicted_checklists_vs_predicted_SR.png", width=6.75, height=3, units="in")
 
 # make 20 km grid map
+# for supplementary to show similar visual patterns
 plot_dat_20 <- grids_20 %>%
   left_join(., full_prediction_dat %>%
               dplyr::filter(grid_size==20))
@@ -194,45 +292,111 @@ ggplot()+
   facet_wrap(~type)+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  scale_fill_viridis_c(name="Number of samples (log10):")+
-  #scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.8, 2.1, 2.4), labels=c(63, 126, 250))+
+  scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.5, 2.0, 2.8), labels=c(32, 100, 631))+
   theme(legend.position="bottom")+
   theme(axis.text=element_text(size=6))+
-  ggtitle(bquote("20 "~km^2~"grids"))
+  ggtitle(bquote("20 "~km^2~"grain size"))
 
-# make 10 km grid map
-plot_dat_10 <- grids_10 %>%
-  left_join(., full_prediction_dat %>%
-              dplyr::filter(grid_size==10))
+ggsave("Figures/20_km_sampling_effort_map.png", height=6.6, width=6.9, units="in")
+
+# Now make a similar map but for psecies richness
+# based on the random forest for species richness
+# will put the two map figures together in powerpoint!
+SR_prediction <- readRDS(paste0("Results/SR_prediction/", year_name, "_20_0.RDS"))
+
+sr_plot_dat_20 <- grids_20 %>%
+  left_join(., SR_prediction) %>%
+  mutate(title="Species richness")
 
 ggplot()+
-  geom_sf(data=plot_dat_10, aes(fill=log10(predicted_checklists)))+
-  facet_wrap(~Order.q)+
+  geom_sf(data=sr_plot_dat_20, aes(fill=log10(predicted_SR)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  scale_fill_viridis_c(name="Number of samples (log10):")+
-  #scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.8, 2.1, 2.4), labels=c(63, 126, 250))+
+  scale_fill_viridis_c(name="Species richness (log10):", breaks=c(2.05, 2.15, 2.25), labels=c(112, 141, 178))+
   theme(legend.position="bottom")+
   theme(axis.text=element_text(size=6))+
-  ggtitle("10 km2 grids")
+  facet_wrap(~title)+
+  theme(axis.text.y=element_blank())+
+  theme(axis.ticks.y=element_blank())
+
+ggsave("Figures/20_km_species_richness_map.png", height=6.4, width=6.6, units="in")
+
+
+
+# look at one example sem result
+sem_results <- readRDS(paste0("Results/sem_results/2019_20_0.RDS"))
+plot(sem_results)
 
 
 # Read in SEM results to summarize
-sem_results <- readRDS(paste0("Results/sem_results/", year_name, "_30_0.RDS")) %>%
-  bind_rows(readRDS(paste0("Results/sem_results/", year_name, "_30_2_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/sem_results/", year_name, "_25_0_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/sem_results/", year_name, "_25_2_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_20_0_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_20_2_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_15_0_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_15_2_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_10_0_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_10_2_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_5_0_0.95.RDS"))) %>%
-  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_5_2_0.95.RDS"))) %>%
+# quick function
+summarize_sem <- function(year_name, grid_resolution, order){
+  
+  sem_results <- readRDS(paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, ".RDS"))
+  
+  df <- data.frame(summary(sem_results)$coefficients) %>%
+    mutate(year=year_name) %>%
+    mutate(grain_size=grid_resolution) %>%
+    mutate(Order.q=order)
+}
+
+sem_results <- bind_rows(lapply(c(30, 25, 20, 15, 10, 5), function(x){summarize_sem(2019, x, 0)})) %>%
+  bind_rows(bind_rows(lapply(c(30, 25, 20, 15, 10, 5), function(x){summarize_sem(2019, x, 2)}))) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
                         Order.q==2 ~ "Common species sensitive"))
 
 
+# get 'mean' Std.Estimate to plot
+# manually in powerpoint
+mean_results <- sem_results %>%
+  unite(combination, Response, Predictor, remove=FALSE) %>%
+  group_by(combination, type) %>%
+  summarize(mean_response=mean(Std.Estimate),
+            sd_response=sd(Std.Estimate))
 
+sem_results %>%
+  dplyr::filter(type=="Common species sensitive") %>%
+  mutate(Predictor=case_when(Predictor=="total_SR" ~ "Species richness",
+                             Predictor=="log.number_checklists" ~ "Number of checklists",
+                             Predictor=="urban" ~ "Urban cover",
+                             Predictor=="heterogeneity" ~ "Heterogeneity",
+                             Predictor=="water" ~ "Water cover",
+                             Predictor=="tree" ~ "Tree cover")) %>%
+  mutate(Response=case_when(Response=="logit.sampling_coverage" ~ "Sampling completeness",
+                            Response=="log.number_checklists" ~ "Number of checklists",
+                            Response=="total_SR" ~ "Species richness")) %>%
+  unite(combination, Predictor, Response, sep=" -> ", remove=FALSE) %>%
+  ggplot(., aes(x=grain_size, y=Std.Estimate))+
+  geom_point()+
+  facet_wrap(~combination, scales="free_y")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  xlab(bquote("Grain size " (~km^2~"")))+
+  ylab("Standardized psem estimate")+
+  ggtitle("Common species sensitive")
+
+ggsave("Figures/sem_grain_size_results_common.png", width=7.8, height=6.7, units="in")
+
+sem_results %>%
+  dplyr::filter(type=="Rare species sensitive") %>%
+  mutate(Predictor=case_when(Predictor=="total_SR" ~ "Species richness",
+                             Predictor=="log.number_checklists" ~ "Number of checklists",
+                             Predictor=="urban" ~ "Urban cover",
+                             Predictor=="heterogeneity" ~ "Heterogeneity",
+                             Predictor=="water" ~ "Water cover",
+                             Predictor=="tree" ~ "Tree cover")) %>%
+  mutate(Response=case_when(Response=="logit.sampling_coverage" ~ "Sampling completeness",
+                            Response=="log.number_checklists" ~ "Number of checklists",
+                            Response=="total_SR" ~ "Species richness")) %>%
+  unite(combination, Predictor, Response, sep=" -> ", remove=FALSE) %>%
+  ggplot(., aes(x=grain_size, y=Std.Estimate))+
+  geom_point()+
+  facet_wrap(~combination, scales="free_y")+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  xlab(bquote("Grain size " (~km^2~"")))+
+  ylab("Standardized psem estimate")+
+  ggtitle("Rare species sensitive")
+
+ggsave("Figures/sem_grain_size_results_rare.png", width=7.8, height=6.7, units="in")
 
