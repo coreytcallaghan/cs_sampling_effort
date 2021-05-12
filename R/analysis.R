@@ -105,124 +105,94 @@ dat_5 <- bind_rows(lapply(c(2014:2019), function(x){summarize_data_function(x, 5
 # look for correlation among predictor/habitat variables
 dat_20 %>%
   ungroup() %>%
-  dplyr::filter(year==2014) %>%
+  dplyr::filter(year==2019) %>%
   dplyr::select(4:7) %>%
   cor(.) %>%
   ggcorrplot(., lab=TRUE)
 
 
-# grid size 20 results
-het <- ggplot(dat_20, aes(x=heterogeneity, y=mean_completeness, 
-                   group=year, color=q))+
+# pick a year
+year_name=2019
+
+
+# shape some data into something we can plot with
+temp <- dat_5 %>%
+  dplyr::filter(year==year_name) %>%
+  bind_rows(dat_10 %>%
+              dplyr::filter(year==year_name)) %>%
+  bind_rows(dat_15 %>%
+              dplyr::filter(year==year_name)) %>%
+  bind_rows(dat_20 %>%
+              dplyr::filter(year==year_name)) %>%
+  bind_rows(dat_25 %>%
+              dplyr::filter(year==year_name)) %>%
+  bind_rows(dat_30 %>%
+              dplyr::filter(year==year_name)) %>%
+  mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
+                        Order.q==2 ~ "Common species sensitive"))
+
+
+# make four plots
+# one for each of our landcover variables
+het <- ggplot(temp, aes(x=heterogeneity, y=mean_completeness, 
+                          group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
+  facet_wrap(~type, scales="free")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
+  ylab("Bootstrapped sampling completeness")+
   xlab("Habitat heterogeneity")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
+  
 
 het
 
-urb <- ggplot(dat_20, aes(x=urban, y=mean_completeness, 
-                          group=year, color=q))+
+urb <- ggplot(temp, aes(x=urban, y=mean_completeness, 
+                        group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
+  facet_wrap(~type, scales="free")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
+  ylab("Bootstrapped sampling completeness")+
   xlab("Urban cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
-  
-urb
-
-water <- ggplot(dat_20, aes(x=water, y=mean_completeness, 
-                            group=year, color=q))+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
-  xlab("Water cover")+
-  geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
-
-water
-
-tree <- ggplot(dat_20, aes(x=tree, y=mean_completeness, 
-                           group=year, color=q))+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
-  xlab("Tree cover")+
-  geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
-
-tree
-  
-het + ggtitle("Grid size=20km") + urb + water + tree + plot_layout(ncol=2)
-
- 
-# do the patterns stay the same at a smaller grid size?
-het <- ggplot(dat_10, aes(x=heterogeneity, y=mean_completeness, 
-                          group=year, color=q))+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
-  xlab("Habitat heterogeneity")+
-  geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
-
-het
-
-urb <- ggplot(dat_10, aes(x=urban, y=mean_completeness, 
-                          group=year, color=q))+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
-  xlab("Urban cover")+
-  geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
 
 urb
 
-water <- ggplot(dat_10, aes(x=water, y=mean_completeness, 
-                            group=year, color=q))+
+water <- ggplot(temp, aes(x=water, y=mean_completeness, 
+                        group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
+  facet_wrap(~type, scales="free")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
+  ylab("")+
   xlab("Water cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
 
 water
 
-tree <- ggplot(dat_10, aes(x=tree, y=mean_completeness, 
-                           group=year, color=q))+
+tree <- ggplot(temp, aes(x=tree, y=mean_completeness, 
+                          group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
-  ylab("Bootstrapped coverage estimate")+
+  facet_wrap(~type, scales="free")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
+  ylab("")+
   xlab("Tree cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="bottom")
 
 tree
 
-het + ggtitle("Grid size = 10km") + urb + water + tree + plot_layout(ncol=2)
+het + water + urb + tree + plot_layout(ncol=2)
 
-  
+ggsave("Figures/bootstrapped_completeness_vs_variables.png", width=8.8, height=6.8, units="in")
+
+
+
 # look at the relationship between completeness
 # and the number of checklists used to sample there
 ggplot(dat_20, aes(x=number_checklists, y=mean_completeness,
@@ -241,63 +211,61 @@ analysis_dat <- dat_20 %>%
 # and the number of total eBird checklists there
 # if there is a positive relationship then that means
 # birders are selecting the locations with the most species/mean completeness
-het_lists <- ggplot(dat_10, aes(x=heterogeneity, y=number_checklists, 
-                          group=year, color=q))+
+het_lists <- ggplot(temp, aes(x=heterogeneity, y=number_checklists, 
+                          group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  #facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
   ylab("Number of samples (log10)")+
   scale_y_log10()+
   xlab("Habitat heterogeneity")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
 
 het_lists
 
-urb_lists <- ggplot(dat_10, aes(x=urban, y=number_checklists, 
-                          group=year, color=q))+
+urb_lists <- ggplot(temp, aes(x=urban, y=number_checklists, 
+                                group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
   ylab("Number of samples (log10)")+
   scale_y_log10()+
   xlab("Urban cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
 
 urb_lists
 
-water_lists <- ggplot(dat_10, aes(x=water, y=number_checklists, 
-                            group=year, color=q))+
+water_lists <- ggplot(temp, aes(x=water, y=number_checklists, 
+                                  group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
   ylab("Number of samples (log10)")+
   scale_y_log10()+
   xlab("Water cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="none")
 
 water_lists
 
-tree_lists <- ggplot(dat_10, aes(x=tree, y=number_checklists, 
-                           group=year, color=q))+
+tree_lists <- ggplot(temp, aes(x=tree, y=number_checklists, 
+                                 group=grid_size, color=as.factor(grid_size)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  facet_wrap(~q, scales="free")+
-  scale_color_brewer(palette="Set1")+
+  scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
   ylab("Number of samples (log10)")+
   scale_y_log10()+
   xlab("Tree cover")+
   geom_smooth(method="lm", se=FALSE)+
-  guides(color=FALSE)
+  theme(legend.position="bottom")
 
 tree_lists
 
-het_lists + ggtitle("Grid size = 10km") + urb_lists + water_lists + tree_lists + plot_layout(ncol=2)
+het_lists + urb_lists + water_lists + tree_lists + plot_layout(ncol=2)
+
+ggsave("Figures/number_of_samples_vs_variables.png", width=8.8, height=6.8, units="in")
 
 
 # plot the relationship between the mean completeness

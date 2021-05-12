@@ -128,6 +128,9 @@ ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklis
   scale_fill_brewer(palette="Set1")+
   guides(fill=FALSE)
 
+ggsave("Figures/observed_checklists_necessary.png", height=5, width=6.5, units="in")
+
+
 # Option 3
 ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=type))+
   geom_violin(position=position_dodge())+
