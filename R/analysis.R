@@ -51,10 +51,10 @@ summarize_data_function <- function(year, grid_size){
     ggpairs(.)+
     theme_bw()+
     theme(axis.text=element_text(color="black"))+
-    ggtitle("q=0")
+    ggtitle("Rare species sensitive")
   
-  # ggsave(paste0("Figures/sampling_design_assessment/", year, "_", grid_size, "_q=0.png"),
-  #        width=7.4, height=7.1, units="in")
+  # manually go into function to save this figure
+  # ggsave(paste0("Figures/bootstap_sample_size_", year, "_", grid_size, "_q=0.png"), width=7.4, height=7.1, units="in")
   
   summarized_data %>%
     dplyr::filter(Order.q==2) %>%
@@ -65,10 +65,9 @@ summarize_data_function <- function(year, grid_size){
     ggpairs(.)+
     theme_bw()+
     theme(axis.text=element_text(color="black"))+
-    ggtitle("q=2")
+    ggtitle("Common species sensitive")
   
-  # ggsave(paste0("Figures/sampling_design_assessment/", year, "_", grid_size, "_q=2.png"),
-  #        width=7.4, height=7.1, units="in")
+  # ggsave(paste0("Figures/bootstap_sample_size_", year, "_", grid_size, "_q=2.png"), width=7.4, height=7.1, units="in")
   
   # let's now use 10 checklists as our cutoff
   # and save this dataframe for further analysis
@@ -191,7 +190,63 @@ het + water + urb + tree + plot_layout(ncol=2)
 
 ggsave("Figures/bootstrapped_completeness_vs_variables.png", width=8.8, height=6.8, units="in")
 
+# run linear models to test strength of relationship
+lms <- temp %>%
+  group_by(grid_size, Order.q) %>%
+  group_modify(~ broom::tidy(lm(scale(mean_completeness) ~ scale(heterogeneity) + 
+                                  scale(urban) + scale(tree) + scale(water), data = .x))) %>%
+  bind_cols(., temp %>%
+              group_by(grid_size, Order.q) %>%
+              group_modify(~ broom::confint_tidy(lm(scale(mean_completeness) ~ scale(heterogeneity) + 
+                                                       scale(urban) + scale(tree) + scale(water), data = .x))) %>%
+              ungroup() %>%
+              dplyr::select(conf.low, conf.high)) %>%
+  mutate(variable=case_when(term=="scale(mean_completeness)" ~ "Bootsrapped sampling completeness",
+                            term=="scale(urban)" ~ "Urban cover",
+                            term=="scale(heterogeneity)" ~ "Heterogeneity",
+                            term=="scale(tree)" ~ "Tree cover",
+                            term=="scale(water)" ~ "Water cover")) %>%
+  dplyr::filter(complete.cases(variable)) %>%
+  mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
+                        Order.q==2 ~ "Common species sensitive"))
 
+common <- lms %>%
+  dplyr::filter(type=="Common species sensitive") %>%
+  ggplot(., aes(x=variable, y=estimate))+
+  facet_wrap(~grid_size, ncol=2)+
+  geom_point()+
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high, width=0))+
+  coord_flip()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  geom_hline(yintercept=0, color="red", linetype="dashed")+
+  ylab("Standardized parameter estimate")+
+  xlab("")+
+  theme(strip.text=element_text(size=8))+
+  ggtitle("Common species sensitive")
+
+common
+
+rare <- lms %>%
+  dplyr::filter(type=="Rare species sensitive") %>%
+  ggplot(., aes(x=variable, y=estimate))+
+  facet_wrap(~grid_size, ncol=2)+
+  geom_point()+
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high, width=0))+
+  coord_flip()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  geom_hline(yintercept=0, color="red", linetype="dashed")+
+  ylab("Standardized parameter estimate")+
+  xlab("")+
+  theme(strip.text=element_text(size=8))+
+  ggtitle("Rare species sensitive")
+
+rare
+
+common+rare+plot_layout(ncol=1)
+
+ggsave("Figures/multiple_linear_regression_completeness.png", width=6.3, height=8, units="in")
 
 # look at the relationship between completeness
 # and the number of checklists used to sample there

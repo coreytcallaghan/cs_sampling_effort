@@ -27,6 +27,27 @@ grids_30 <- st_read("Spatial data/30_km_grids_shape/study_extent_grids_30km.geoj
 
 year_name="2019"
 
+# get overall summary stats for 2019
+# read in data
+summarize_data_used_function <- function(grid_size){
+  
+  bird_dat <- readRDS(paste0("Data/bcr31_2019_data.RDS")) %>%
+    left_join(., readRDS(paste0("Data/grid_lookups/", grid_size, "km_grid_lookup_bcr31_2019.RDS")))
+  
+  grid_summary <- bird_dat %>%
+    group_by(grid_id) %>%
+    summarize(number_checklists=length(unique(SAMPLING_EVENT_IDENTIFIER)),
+              total_SR=length(unique(COMMON_NAME))) %>%
+    dplyr::filter(number_checklists>=25)
+  
+  df_summary <- data.frame(number_grids=nrow(grid_summary),
+                           total_checklists=length(unique(bird_dat$SAMPLING_EVENT_IDENTIFIER)),
+                           total_SR=length(unique(bird_dat$COMMON_NAME)))
+  
+  }
+
+overall_data_summary <- bind_rows(lapply(c(5, 10, 15, 20, 25, 30), summarize_data_used_function))
+
 # First will check the partial dependence data to make sure the
 # completeness analysis 'makes sense' for both the mean completeness and the total completeness
 # now read in the partial dependence data for this year
@@ -115,7 +136,7 @@ ggplot(observed_prediction_dat, aes(x=type, y=predicted_checklists, fill=type))+
   guides(fill=FALSE)
 
 # Option 2
-ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(grid_size)))+
+observed_prediction <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(grid_size)))+
   geom_violin()+
   stat_summary(fun='mean', geom='point', size=2, col='black')+
   coord_flip()+
@@ -128,6 +149,7 @@ ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklis
   scale_fill_brewer(palette="Set1")+
   guides(fill=FALSE)
 
+observed_prediction
 ggsave("Figures/observed_checklists_necessary.png", height=5, width=6.5, units="in")
 
 
@@ -152,10 +174,12 @@ observed_prediction_dat %>%
   group_by(grid_size, type) %>%
   summarize(mean=mean(predicted_checklists),
             sd=sd(predicted_checklists),
-            N=length(unique(grid_id)))
+            N=length(unique(grid_id)),
+            min=min(predicted_checklists),
+            max=max(predicted_checklists))
 
 # Plot the number of checklists needed as a function of grid size
-observed_prediction_dat %>%
+predicted_vs_grain_size <- observed_prediction_dat %>%
   group_by(grid_size, type) %>%
   summarize(mean=mean(predicted_checklists),
             sd=sd(predicted_checklists)) %>%
@@ -169,7 +193,13 @@ observed_prediction_dat %>%
   theme(legend.title=element_blank())+
   theme(legend.position="bottom")
 
+predicted_vs_grain_size
 ggsave("Figures/checklists_needed_vs_grain_size.png", height=5, width=6.5, units="in")
+
+# put the two together
+observed_prediction + ggtitle("A") + predicted_vs_grain_size + ggtitle("B") + plot_layout(ncol=1)
+
+ggsave("Figures/observed_predictions_AND_grain_size.png", height=7.8, width=6.2, units="in")
 
 # full prediction data (mainly for spatial plotting)
 full_prediction_dat <- readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_30_0_0.95.RDS")) %>%
@@ -193,7 +223,20 @@ full_prediction_dat %>%
   dplyr::filter(complete.cases(predicted_checklists)) %>%
   summarize(mean=mean(predicted_checklists),
             sd=sd(predicted_checklists),
-            N=length(unique(grid_id)))
+            N=length(unique(grid_id)),
+            R2=mean(model_r2))
+
+full_prediction_dat %>%
+  group_by(grid_size, type) %>%
+  dplyr::filter(complete.cases(predicted_checklists)) %>%
+  summarize(mean=mean(predicted_checklists),
+            sd=sd(predicted_checklists),
+            N=length(unique(grid_id)),
+            R2=mean(model_r2)) %>%
+  group_by(type) %>%
+  summarize(mean_r2=mean(R2),
+            min_r2=min(R2),
+            max_r2=max(R2))
 
 # test the distribution of predicted checklists needed
 # for the observed grid cells and the predicted grid cells
@@ -376,9 +419,10 @@ sem_results %>%
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Standardized psem estimate")+
-  ggtitle("Common species sensitive")
+  ggtitle("Common species sensitive")+
+  theme(strip.text=element_text(size=7.5))
 
-ggsave("Figures/sem_grain_size_results_common.png", width=7.8, height=6.7, units="in")
+ggsave("Figures/sem_grain_size_results_common.png", width=8.0, height=6.7, units="in")
 
 sem_results %>%
   dplyr::filter(type=="Rare species sensitive") %>%
@@ -399,7 +443,8 @@ sem_results %>%
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Standardized psem estimate")+
-  ggtitle("Rare species sensitive")
+  ggtitle("Rare species sensitive")+
+  theme(strip.text=element_text(size=7.5))
 
-ggsave("Figures/sem_grain_size_results_rare.png", width=7.8, height=6.7, units="in")
+ggsave("Figures/sem_grain_size_results_rare.png", width=8.0, height=6.7, units="in")
 
