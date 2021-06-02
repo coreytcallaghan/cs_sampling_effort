@@ -139,7 +139,7 @@ het <- ggplot(temp, aes(x=heterogeneity, y=mean_completeness,
   theme(axis.text=element_text(color="black"))+
   facet_wrap(~type, scales="free")+
   scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
-  ylab("Bootstrapped sampling completeness")+
+  ylab("Standardized sampling completeness")+
   xlab("Habitat heterogeneity")+
   geom_smooth(method="lm", se=FALSE)+
   theme(legend.position="none")
@@ -153,7 +153,7 @@ urb <- ggplot(temp, aes(x=urban, y=mean_completeness,
   theme(axis.text=element_text(color="black"))+
   facet_wrap(~type, scales="free")+
   scale_color_brewer(palette="Set1", name=bquote("Grain size " (~km^2~"")))+
-  ylab("Bootstrapped sampling completeness")+
+  ylab("Standardized sampling completeness")+
   xlab("Urban cover")+
   geom_smooth(method="lm", se=FALSE)+
   theme(legend.position="none")
@@ -201,7 +201,7 @@ lms <- temp %>%
                                                        scale(urban) + scale(tree) + scale(water), data = .x))) %>%
               ungroup() %>%
               dplyr::select(conf.low, conf.high)) %>%
-  mutate(variable=case_when(term=="scale(mean_completeness)" ~ "Bootsrapped sampling completeness",
+  mutate(variable=case_when(term=="scale(mean_completeness)" ~ "Standardized sampling completeness",
                             term=="scale(urban)" ~ "Urban cover",
                             term=="scale(heterogeneity)" ~ "Heterogeneity",
                             term=="scale(tree)" ~ "Tree cover",
@@ -383,12 +383,8 @@ analysis_function <- function(year_name, grid_resolution, data){
       ggtitle(paste0(year_name, "; ", grid_resolution, "km; q=", order))
     
     # run a random forest model
-    set.seed(123)
-    samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
-    train <- filtered_dat[samp, ]
-    test <- filtered_dat[-samp, ]
-    
-    mod <- randomForest(log10(number_checklists) ~ ., data = train)
+    # using the defaults
+    mod <- randomForest(log10(number_checklists) ~ ., replace=FALSE, data = filtered_dat)
     
     mod
     
@@ -396,21 +392,7 @@ analysis_function <- function(year_name, grid_resolution, data){
     partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
     partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
-    pred <- data.frame(predicted_checklists=10^predict(mod, newdata = test)) %>%
-      mutate(observed_checklists=test$number_checklists)
-    
-    ggplot(pred, aes(x=predicted_checklists, y=observed_checklists))+
-      geom_point()+
-      scale_x_log10()+
-      scale_y_log10()+
-      geom_smooth(method="lm")+
-      theme_bw()+
-      theme(axis.text=element_text(color="black"))
-    
-    r2 <- pred %>%
-      lm(predicted_checklists ~ observed_checklists, data=.) %>%
-      summary() %>%
-      .$r.squared
+    r2 <- mean(mod$rsq)
     
     partial_dependence <- data.frame(partial(mod, pred.var="total_completeness")) %>%
       mutate(variable="total_completeness") %>%
@@ -572,32 +554,15 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
     saveRDS(psem1, paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, ".RDS"))
     
     # run a random forest model
-    set.seed(123)
-    samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
-    train <- filtered_dat[samp, ]
-    test <- filtered_dat[-samp, ]
-    
-    mod <- randomForest(log10(number_checklists) ~ ., data = train)
+    mod <- randomForest(log10(number_checklists) ~ ., replace=FALSE, data = filtered_dat)
     
     mod
     
     vip(mod)
+    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
+    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
-    pred <- data.frame(predicted_checklists=10^predict(mod, newdata = test)) %>%
-      mutate(observed_checklists=test$number_checklists)
-    
-    ggplot(pred, aes(x=predicted_checklists, y=observed_checklists))+
-      geom_point()+
-      scale_x_log10()+
-      scale_y_log10()+
-      geom_smooth(method="lm")+
-      theme_bw()+
-      theme(axis.text=element_text(color="black"))
-    
-    r2 <- pred %>%
-      lm(predicted_checklists ~ observed_checklists, data=.) %>%
-      summary() %>%
-      .$r.squared
+    r2 <- mean(mod$rsq)
 
     # write a function to make a prediction at different levels of completeness
     different_completeness <- function(completeness){
@@ -693,32 +658,15 @@ predict_richness <- function(year_name, grid_resolution, data){
       mutate(number_checklists=log10(number_checklists))
 
     # run a random forest model
-    set.seed(123)
-    samp <- sample(nrow(filtered_dat), 0.8 * nrow(filtered_dat))
-    train <- filtered_dat[samp, ]
-    test <- filtered_dat[-samp, ]
-    
-    mod <- randomForest(log10(total_SR) ~ ., data = train)
+    mod <- randomForest(log10(number_checklists) ~ ., replace=FALSE, data = filtered_dat)
     
     mod
     
     vip(mod)
+    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
+    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
-    pred <- data.frame(predicted_SR=10^predict(mod, newdata = test)) %>%
-      mutate(observed_SR=test$total_SR)
-    
-    ggplot(pred, aes(x=predicted_SR, y=observed_SR))+
-      geom_point()+
-      scale_x_log10()+
-      scale_y_log10()+
-      geom_smooth(method="lm")+
-      theme_bw()+
-      theme(axis.text=element_text(color="black"))
-    
-    r2 <- pred %>%
-      lm(predicted_SR ~ observed_SR, data=.) %>%
-      summary() %>%
-      .$r.squared
+    r2 <- mean(mod$rsq)
     
     apple <- preds %>%
       dplyr::select(grid_id, heterogeneity, `tree-coverfraction`,
