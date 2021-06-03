@@ -142,6 +142,7 @@ observed_prediction <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_size
   coord_flip()+
   facet_wrap(~type)+
   scale_y_log10()+
+  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("30", "25", "20", "15", "10", "5"))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
@@ -295,7 +296,7 @@ ggplot()+
   geom_sf(data=sr_plot_dat_10, aes(fill=log10(predicted_SR)))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
-  scale_fill_viridis_c(name="Species richness (log10):", breaks=c(1.9, 2.0, 2.15), labels=c(79, 100, 141))+
+  scale_fill_viridis_c(name="Species richness (log10):", breaks=c(1.9, 2.0, 2.13), labels=c(79, 100, 135))+
   theme(legend.position="bottom")+
   theme(axis.text=element_text(size=6))+
   facet_wrap(~title)+
@@ -376,40 +377,33 @@ plot(sem_results)
 
 # Read in SEM results to summarize
 # quick function
-summarize_sem <- function(year_name, grid_resolution, order){
+summarize_sem <- function(year_name, grid_resolution){
   
   sem_results <- readRDS(paste0("Results/sem_results/", year_name, "_", grid_resolution, "_", order, ".RDS"))
   
   df <- data.frame(summary(sem_results)$coefficients) %>%
     mutate(year=year_name) %>%
-    mutate(grain_size=grid_resolution) %>%
-    mutate(Order.q=order)
+    mutate(grain_size=grid_resolution) 
 }
 
-sem_results <- bind_rows(lapply(c(30, 25, 20, 15, 10, 5), function(x){summarize_sem(2019, x, 0)})) %>%
-  bind_rows(bind_rows(lapply(c(30, 25, 20, 15, 10, 5), function(x){summarize_sem(2019, x, 2)}))) %>%
-  mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+sem_results <- bind_rows(lapply(c(30, 25, 20, 15, 10, 5), function(x){summarize_sem(2019, x)}))
 
 
 # get 'mean' Std.Estimate to plot
 # manually in powerpoint
 mean_results <- sem_results %>%
   unite(combination, Response, Predictor, remove=FALSE) %>%
-  group_by(combination, type) %>%
+  group_by(combination) %>%
   summarize(mean_response=mean(Std.Estimate),
             sd_response=sd(Std.Estimate))
 
 sem_results %>%
-  dplyr::filter(type=="Common species sensitive") %>%
   mutate(Predictor=case_when(Predictor=="total_SR" ~ "Species richness",
-                             Predictor=="log.number_checklists" ~ "Number of checklists",
                              Predictor=="urban" ~ "Urban cover",
                              Predictor=="heterogeneity" ~ "Heterogeneity",
                              Predictor=="water" ~ "Water cover",
                              Predictor=="tree" ~ "Tree cover")) %>%
-  mutate(Response=case_when(Response=="logit.sampling_coverage" ~ "Sampling completeness",
-                            Response=="log.number_checklists" ~ "Number of checklists",
+  mutate(Response=case_when(Response=="log.number_checklists" ~ "Number of checklists",
                             Response=="total_SR" ~ "Species richness")) %>%
   unite(combination, Predictor, Response, sep=" -> ", remove=FALSE) %>%
   ggplot(., aes(x=grain_size, y=Std.Estimate))+
@@ -419,32 +413,9 @@ sem_results %>%
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
   ylab("Standardized psem estimate")+
-  ggtitle("Common species sensitive")+
   theme(strip.text=element_text(size=7.5))
 
-ggsave("Figures/sem_grain_size_results_common.png", width=8.0, height=6.7, units="in")
+ggsave("Figures/sem_grain_size_results.png", width=8.0, height=6.7, units="in")
 
-sem_results %>%
-  dplyr::filter(type=="Rare species sensitive") %>%
-  mutate(Predictor=case_when(Predictor=="total_SR" ~ "Species richness",
-                             Predictor=="log.number_checklists" ~ "Number of checklists",
-                             Predictor=="urban" ~ "Urban cover",
-                             Predictor=="heterogeneity" ~ "Heterogeneity",
-                             Predictor=="water" ~ "Water cover",
-                             Predictor=="tree" ~ "Tree cover")) %>%
-  mutate(Response=case_when(Response=="logit.sampling_coverage" ~ "Sampling completeness",
-                            Response=="log.number_checklists" ~ "Number of checklists",
-                            Response=="total_SR" ~ "Species richness")) %>%
-  unite(combination, Predictor, Response, sep=" -> ", remove=FALSE) %>%
-  ggplot(., aes(x=grain_size, y=Std.Estimate))+
-  geom_point()+
-  facet_wrap(~combination, scales="free_y")+
-  theme_bw()+
-  theme(axis.text=element_text(color="black"))+
-  xlab(bquote("Grain size " (~km^2~"")))+
-  ylab("Standardized psem estimate")+
-  ggtitle("Rare species sensitive")+
-  theme(strip.text=element_text(size=7.5))
 
-ggsave("Figures/sem_grain_size_results_rare.png", width=8.0, height=6.7, units="in")
 

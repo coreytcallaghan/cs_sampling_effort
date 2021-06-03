@@ -544,7 +544,6 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
       mutate(logit.sampling_coverage=car::logit(total_completeness))
     
     psem1 <- psem(
-      lm(logit.sampling_coverage ~ total_SR + log.number_checklists, data=psem_dat),
       lm(log.number_checklists ~ total_SR + urban + heterogeneity, data=psem_dat),
       lm(total_SR ~ heterogeneity + urban + water + tree, data=psem_dat)
     )
@@ -658,13 +657,9 @@ predict_richness <- function(year_name, grid_resolution, data){
       mutate(number_checklists=log10(number_checklists))
 
     # run a random forest model
-    mod <- randomForest(log10(number_checklists) ~ ., replace=FALSE, data = filtered_dat)
+    mod <- randomForest(log10(total_SR) ~ ., replace=FALSE, data = filtered_dat)
     
     mod
-    
-    vip(mod)
-    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
-    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
     r2 <- mean(mod$rsq)
     
