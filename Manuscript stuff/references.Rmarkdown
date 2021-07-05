@@ -2,7 +2,7 @@
 title: "references"
 output: word_document
 bibliography: refs.bib
-csl: global-change-biology.csl
+csl: ecological-applications.csl
 ---
 
 ---

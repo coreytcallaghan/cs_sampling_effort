@@ -324,7 +324,7 @@ ggplot(sr_vs_predicted_checklists, aes(x=predicted_checklists, y=predicted_SR, c
   theme(legend.position="none")+
   theme(legend.title=element_blank())+
   xlab("Predicted checklists to meet 95% completeness (log10)")+
-  ylab("Predicted species richness (log10)")
+  ylab("Predicted species diversity (log10)")
 
 ggsave("Figures/predicted_checklists_vs_predicted_SR.png", width=6.75, height=3, units="in")
 
