@@ -23,10 +23,10 @@ library(mice)
 summarize_data_function <- function(year, grid_size){
   
   dat <- readRDS(paste0("Intermediate grid level data/sampling_profile_boot/", grid_size, "km_bcr31_", year, ".RDS")) %>%
-    dplyr::filter(Order.q %in% c(0, 2))
+    dplyr::filter(Order.q %in% c(0, 1, 2))
   
   dat2 <- readRDS(paste0("Intermediate grid level data/sampling_profile/", grid_size, "km_bcr31_", year, ".RDS")) %>%
-    dplyr::filter(Order.q %in% c(0, 2))
+    dplyr::filter(Order.q %in% c(0, 1, 2))
   
   preds <- read_csv(paste0("Data/predictor_data_for_grids/stats_", grid_size, "km.csv")) %>%
     dplyr::select(-`system:index`, -`.geo`)
@@ -128,7 +128,8 @@ temp <- dat_5 %>%
   bind_rows(dat_30 %>%
               dplyr::filter(year==year_name)) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+                        Order.1==1 ~ "Common species sensitive",
+                        Order.q==2 ~ "Dominant species sensitive"))
 
 
 # make four plots
@@ -208,7 +209,8 @@ lms <- temp %>%
                             term=="scale(water)" ~ "Water cover")) %>%
   dplyr::filter(complete.cases(variable)) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+                        Order.1==1 ~ "Common species sensitive",
+                        Order.q==2 ~ "Dominant species sensitive"))
 
 common <- lms %>%
   dplyr::filter(type=="Common species sensitive") %>%
@@ -387,21 +389,21 @@ analysis_function <- function(year_name, grid_resolution, data){
     mod <- randomForest(log10(number_checklists) ~ ., replace=FALSE, data = filtered_dat)
     
     mod
-    
+   
     vip(mod)
-    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
-    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
+    # partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
+    # partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
     r2 <- mean(mod$rsq)
     
-    partial_dependence <- data.frame(partial(mod, pred.var="total_completeness")) %>%
+    partial_dependence <- data.frame(partial(mod, pred.var="total_completeness", train=filtered_dat)) %>%
       mutate(variable="total_completeness") %>%
       rename(completeness=total_completeness) %>%
       mutate(number_checklists=10^yhat) %>%
       mutate(Order.q=order) %>%
       mutate(year=year_name) %>%
       mutate(grid_size=grid_resolution) %>%
-      bind_rows(data.frame(partial(mod, pred.var="mean_completeness")) %>%
+      bind_rows(data.frame(partial(mod, pred.var="mean_completeness", train=filtered_dat)) %>%
                   mutate(variable="mean_completeness") %>%
                   rename(completeness=mean_completeness) %>%
                   mutate(number_checklists=10^yhat) %>%
@@ -484,7 +486,7 @@ analysis_function <- function(year_name, grid_resolution, data){
     
   }
   
-  lapply(c(0, 2), different_order)
+  lapply(c(0, 1, 2), different_order)
   
 }
 
@@ -558,8 +560,8 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
     mod
     
     vip(mod)
-    partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
-    partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
+    # partial(mod, pred.var="total_completeness", plot=TRUE, plot.engine="ggplot2")
+    # partial(mod, pred.var="mean_completeness", plot=TRUE, plot.engine="ggplot2")
     
     r2 <- mean(mod$rsq)
 
@@ -622,7 +624,7 @@ analysis_function_v2 <- function(year_name, grid_resolution, data){
     
   }
   
-  lapply(c(0, 2), different_order)
+  lapply(c(0, 1, 2), different_order)
   
 }
 
@@ -688,7 +690,7 @@ predict_richness <- function(year_name, grid_resolution, data){
     
   }
   
-  lapply(c(0, 2), different_order)
+  lapply(c(0, 1, 2), different_order)
   
 }
 
