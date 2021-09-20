@@ -105,18 +105,26 @@ grid_20_pd + grid_10_pd + grid_5_pd + plot_layout(ncol=1)
 # observed prediction data
 observed_prediction_dat <- readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_30_0_0.95.RDS")) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_30_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_30_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_25_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_25_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_25_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_20_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_20_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_20_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_15_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_15_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_15_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_10_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_10_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_10_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_5_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_5_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/observed_prediction/v2_observed_", year_name, "_5_1_0.95.RDS"))) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+                        Order.q==1 ~ "Common species sensitive",
+                        Order.q==2 ~ "Dominant species sensitive")) %>%
+  mutate(type=factor(type, levels=c("Dominant species sensitive", "Common species sensitive", "Rare species sensitive")))
 
 # Now plot the main results of the 'number of checklists'
 # needed to sample biodiversity
@@ -136,7 +144,28 @@ ggplot(observed_prediction_dat, aes(x=type, y=predicted_checklists, fill=type))+
   guides(fill=FALSE)
 
 # Option 2
-observed_prediction <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(grid_size)))+
+observed_prediction_all <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(grid_size)))+
+  geom_violin()+
+  stat_summary(fun='mean', geom='point', size=2, col='black')+
+  coord_flip()+
+  facet_wrap(~type)+
+  scale_y_log10()+
+  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("30", "25", "20", "15", "10", "5"))+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  xlab(bquote("Grain size " (~km^2~"")))+
+  ylab("Number of checklists to meet 95% completeness")+
+  scale_fill_brewer(palette="Set1")+
+  guides(fill=FALSE)
+
+observed_prediction_all
+ggsave("Figures/observed_checklists_necessary_all.png", height=5, width=6.5, units="in")
+
+# Option 2 again
+# after we show that dominant and 'common' species are both very similar!
+# so now remove 'common species sensitive'
+observed_prediction <- ggplot(observed_prediction_dat %>%
+                                dplyr::filter(type != "Common species sensitive"), aes(x=as.factor(grid_size), y=predicted_checklists, fill=as.factor(grid_size)))+
   geom_violin()+
   stat_summary(fun='mean', geom='point', size=2, col='black')+
   coord_flip()+
@@ -152,7 +181,6 @@ observed_prediction <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_size
 
 observed_prediction
 ggsave("Figures/observed_checklists_necessary.png", height=5, width=6.5, units="in")
-
 
 # Option 3
 ggplot(observed_prediction_dat, aes(x=as.factor(grid_size), y=predicted_checklists, fill=type))+
@@ -181,6 +209,7 @@ observed_prediction_dat %>%
 
 # Plot the number of checklists needed as a function of grid size
 predicted_vs_grain_size <- observed_prediction_dat %>%
+  dplyr::filter(type != "Common species sensitive") %>%
   group_by(grid_size, type) %>%
   summarize(mean=mean(predicted_checklists),
             sd=sd(predicted_checklists)) %>%
@@ -205,18 +234,26 @@ ggsave("Figures/observed_predictions_AND_grain_size.png", height=7.8, width=6.2,
 # full prediction data (mainly for spatial plotting)
 full_prediction_dat <- readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_30_0_0.95.RDS")) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_30_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_30_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_25_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_25_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_25_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_20_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_20_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_20_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_15_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_15_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_15_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_10_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_10_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_10_1_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_5_0_0.95.RDS"))) %>%
   bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_5_2_0.95.RDS"))) %>%
+  bind_rows(readRDS(paste0("Results/full_prediction/v2_full_", year_name, "_5_1_0.95.RDS"))) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+                        Order.q==1 ~ "Common species sensitive",
+                        Order.q==2 ~ "Dominant species sensitive")) %>%
+  mutate(type=factor(type, levels=c("Dominant species sensitive", "Common species sensitive", "Rare species sensitive")))
 
 # summary of full prediction dat
 full_prediction_dat %>%
@@ -242,7 +279,9 @@ full_prediction_dat %>%
 # test the distribution of predicted checklists needed
 # for the observed grid cells and the predicted grid cells
 full_prediction_dat %>%
+  dplyr::filter(type != "Common species sensitive") %>%
   left_join(., observed_prediction_dat %>%
+              dplyr::filter(type != "Common species sensitive") %>%
               dplyr::select(grid_id, grid_size) %>%
               distinct() %>%
               mutate(orange="Sampled")) %>%
@@ -269,6 +308,23 @@ ggsave("Figures/sampled_vs_unsampled_predictions.png", width=8.8, height=7.2, un
 # make 10 km grid map
 plot_dat_10 <- grids_10 %>%
   left_join(., full_prediction_dat %>%
+              dplyr::filter(grid_size==10))
+
+ggplot()+
+  geom_sf(data=plot_dat_10, aes(fill=log10(predicted_checklists)))+
+  facet_wrap(~type)+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.5, 2.0, 2.8), labels=c(32, 100, 631))+
+  theme(legend.position="bottom")+
+  theme(axis.text=element_text(size=6))+
+  ggtitle(bquote("10 "~km^2~"grain size"))
+
+ggsave("Figures/10_km_sampling_effort_map_all.png", height=6.6, width=6.9, units="in")
+
+plot_dat_10 <- grids_10 %>%
+  left_join(., full_prediction_dat %>%
+              dplyr::filter(type !="Common species sensitive") %>%
               dplyr::filter(grid_size==10))
 
 ggplot()+
@@ -309,6 +365,7 @@ ggsave("Figures/10_km_species_richness_map.png", height=6.4, width=6.6, units="i
 # and the number of checklists needed in each grid cell
 sr_vs_predicted_checklists <- full_prediction_dat %>%
   dplyr::filter(grid_size==10) %>%
+  dplyr::filter(type != "Common species sensitive") %>%
   dplyr::select(grid_id, type, predicted_checklists) %>%
   left_join(., SR_prediction %>%
               dplyr::select(grid_id, predicted_SR))

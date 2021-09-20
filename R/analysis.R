@@ -65,7 +65,7 @@ summarize_data_function <- function(year, grid_size){
     ggpairs(.)+
     theme_bw()+
     theme(axis.text=element_text(color="black"))+
-    ggtitle("Common species sensitive")
+    ggtitle("Dominant species sensitive")
   
   # ggsave(paste0("Figures/bootstap_sample_size_", year, "_", grid_size, "_q=2.png"), width=7.4, height=7.1, units="in")
   
@@ -128,8 +128,9 @@ temp <- dat_5 %>%
   bind_rows(dat_30 %>%
               dplyr::filter(year==year_name)) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.1==1 ~ "Common species sensitive",
-                        Order.q==2 ~ "Dominant species sensitive"))
+                        Order.q==1 ~ "Common species sensitive",
+                        Order.q==2 ~ "Dominant species sensitive")) %>%
+  dplyr::filter(type != "Common species")
 
 
 # make four plots
@@ -209,7 +210,7 @@ lms <- temp %>%
                             term=="scale(water)" ~ "Water cover")) %>%
   dplyr::filter(complete.cases(variable)) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.1==1 ~ "Common species sensitive",
+                        Order.q==1 ~ "Common species sensitive",
                         Order.q==2 ~ "Dominant species sensitive"))
 
 common <- lms %>%
@@ -229,6 +230,23 @@ common <- lms %>%
 
 common
 
+dominant <- lms %>%
+  dplyr::filter(type=="Dominant species sensitive") %>%
+  ggplot(., aes(x=variable, y=estimate))+
+  facet_wrap(~grid_size, ncol=2)+
+  geom_point()+
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high, width=0))+
+  coord_flip()+
+  theme_bw()+
+  theme(axis.text=element_text(color="black"))+
+  geom_hline(yintercept=0, color="red", linetype="dashed")+
+  ylab("Standardized parameter estimate")+
+  xlab("")+
+  theme(strip.text=element_text(size=8))+
+  ggtitle("Dominant species sensitive")
+
+dominant
+
 rare <- lms %>%
   dplyr::filter(type=="Rare species sensitive") %>%
   ggplot(., aes(x=variable, y=estimate))+
@@ -246,9 +264,9 @@ rare <- lms %>%
 
 rare
 
-common+rare+plot_layout(ncol=1)
+dominant+common+rare+plot_layout(ncol=1)
 
-ggsave("Figures/multiple_linear_regression_completeness.png", width=6.3, height=8, units="in")
+ggsave("Figures/multiple_linear_regression_completeness.png", width=6.3, height=8.8, units="in")
 
 # look at the relationship between completeness
 # and the number of checklists used to sample there

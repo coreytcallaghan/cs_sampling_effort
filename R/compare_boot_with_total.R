@@ -21,7 +21,7 @@ summary <- boot %>%
   summarize(mean_Estimate=mean(Estimate),
             sd_estimate=sd(Estimate)) %>%
   mutate(type=case_when(Order.q==0 ~ "Rare species sensitive",
-                        Order.q==2 ~ "Common species sensitive"))
+                        Order.q==2 ~ "Dominant species sensitive"))
 
 # correlation between the mean estimate
 # when only sampling 10 checklists at a time
