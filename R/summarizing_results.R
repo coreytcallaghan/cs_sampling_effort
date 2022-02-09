@@ -150,7 +150,7 @@ observed_prediction_all <- ggplot(observed_prediction_dat, aes(x=as.factor(grid_
   coord_flip()+
   facet_wrap(~type)+
   scale_y_log10()+
-  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("30", "25", "20", "15", "10", "5"))+
+  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("5", "10", "15", "20", "25", "30"))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
@@ -171,7 +171,7 @@ observed_prediction <- ggplot(observed_prediction_dat %>%
   coord_flip()+
   facet_wrap(~type)+
   scale_y_log10()+
-  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("30", "25", "20", "15", "10", "5"))+
+  scale_x_discrete(labels=c(5, 10, 15, 20, 25, 30), limits=c("5", "10", "15", "20", "25", "30"))+
   theme_bw()+
   theme(axis.text=element_text(color="black"))+
   xlab(bquote("Grain size " (~km^2~"")))+
@@ -334,7 +334,8 @@ ggplot()+
   theme(axis.text=element_text(color="black"))+
   scale_fill_viridis_c(name="Number of samples (log10):", breaks=c(1.5, 2.0, 2.8), labels=c(32, 100, 631))+
   theme(legend.position="bottom")+
-  theme(axis.text=element_text(size=6))+
+  theme(axis.text.x=element_text(size=10, angle=45, hjust=1))+
+  theme(axis.text.y=element_text(size=10))+
   ggtitle(bquote("10 "~km^2~"grain size"))
 
 ggsave("Figures/10_km_sampling_effort_map.png", height=6.6, width=6.9, units="in")
@@ -354,7 +355,7 @@ ggplot()+
   theme(axis.text=element_text(color="black"))+
   scale_fill_viridis_c(name="Species richness (log10):", breaks=c(1.9, 2.0, 2.13), labels=c(79, 100, 135))+
   theme(legend.position="bottom")+
-  theme(axis.text=element_text(size=6))+
+  theme(axis.text=element_text(size=10, angle=45, hjust=1))+
   facet_wrap(~title)+
   theme(axis.text.y=element_blank())+
   theme(axis.ticks.y=element_blank())
